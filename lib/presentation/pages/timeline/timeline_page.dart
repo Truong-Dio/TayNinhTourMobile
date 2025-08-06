@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 
 import '../../providers/tour_guide_provider.dart';
 import '../../widgets/common/loading_overlay.dart';
@@ -75,6 +74,8 @@ class _TimelinePageState extends State<TimelinePage> {
   }
 
   Future<bool> _showCompleteDialog(TimelineItem item) async {
+    if (!mounted) return false;
+
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(

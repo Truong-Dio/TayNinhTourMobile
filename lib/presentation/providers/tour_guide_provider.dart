@@ -5,7 +5,6 @@ import '../../data/datasources/tour_guide_api_service.dart';
 import '../../domain/entities/active_tour.dart';
 import '../../domain/entities/tour_booking.dart';
 import '../../domain/entities/timeline_item.dart';
-import '../../core/errors/failures.dart';
 
 class TourGuideProvider extends ChangeNotifier {
   final TourGuideApiService _tourGuideApiService;
@@ -36,15 +35,10 @@ class TourGuideProvider extends ChangeNotifier {
     try {
       _setLoading(true);
       _clearError();
-      
+
       final response = await _tourGuideApiService.getMyActiveTours();
-      
-      if (response.success && response.data != null) {
-        _activeTours = response.data!.map((model) => model.toEntity()).toList();
-        _logger.i('Loaded ${_activeTours.length} active tours');
-      } else {
-        _setError(response.message ?? 'Không thể tải danh sách tours');
-      }
+      _activeTours = response.map((model) => model.toEntity()).toList();
+      _logger.i('Loaded ${_activeTours.length} active tours');
     } catch (e) {
       _logger.e('Error loading active tours: $e');
       _setError('Có lỗi xảy ra khi tải danh sách tours');
@@ -58,15 +52,10 @@ class TourGuideProvider extends ChangeNotifier {
     try {
       _setLoading(true);
       _clearError();
-      
+
       final response = await _tourGuideApiService.getTourBookings(operationId);
-      
-      if (response.success && response.data != null) {
-        _tourBookings = response.data!.map((model) => model.toEntity()).toList();
-        _logger.i('Loaded ${_tourBookings.length} tour bookings');
-      } else {
-        _setError(response.message ?? 'Không thể tải danh sách khách hàng');
-      }
+      _tourBookings = response.map((model) => model.toEntity()).toList();
+      _logger.i('Loaded ${_tourBookings.length} tour bookings');
     } catch (e) {
       _logger.e('Error loading tour bookings: $e');
       _setError('Có lỗi xảy ra khi tải danh sách khách hàng');
@@ -80,17 +69,12 @@ class TourGuideProvider extends ChangeNotifier {
     try {
       _setLoading(true);
       _clearError();
-      
+
       final response = await _tourGuideApiService.getTourTimeline(tourDetailsId);
-      
-      if (response.success && response.data != null) {
-        _timelineItems = response.data!.map((model) => model.toEntity()).toList();
-        // Sort by sort order
-        _timelineItems.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-        _logger.i('Loaded ${_timelineItems.length} timeline items');
-      } else {
-        _setError(response.message ?? 'Không thể tải lịch trình tour');
-      }
+      _timelineItems = response.map((model) => model.toEntity()).toList();
+      // Sort by sort order
+      _timelineItems.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+      _logger.i('Loaded ${_timelineItems.length} timeline items');
     } catch (e) {
       _logger.e('Error loading tour timeline: $e');
       _setError('Có lỗi xảy ra khi tải lịch trình tour');
@@ -106,9 +90,9 @@ class TourGuideProvider extends ChangeNotifier {
       _clearError();
 
       final request = CheckInRequest(qrCodeData: qrCodeData, notes: notes);
-      final response = await _tourGuideApiService.checkInGuest(bookingId, request);
+      await _tourGuideApiService.checkInGuest(bookingId, request);
 
-      if (response['success'] == true) {
+      // If no exception thrown, consider it successful
         // Update local booking state
         final bookingIndex = _tourBookings.indexWhere((b) => b.id == bookingId);
         if (bookingIndex != -1) {
@@ -137,10 +121,6 @@ class TourGuideProvider extends ChangeNotifier {
         
         _logger.i('Guest checked in successfully: $bookingId');
         return true;
-      } else {
-        _setError(response['message'] ?? 'Không thể check-in khách hàng');
-        return false;
-      }
     } catch (e) {
       _logger.e('Error checking in guest: $e');
       _setError('Có lỗi xảy ra khi check-in khách hàng');
@@ -157,9 +137,9 @@ class TourGuideProvider extends ChangeNotifier {
       _clearError();
       
       final request = CompleteTimelineRequest(notes: notes);
-      final response = await _tourGuideApiService.completeTimelineItem(timelineId, request);
+      await _tourGuideApiService.completeTimelineItem(timelineId, request);
 
-      if (response['success'] == true) {
+      // If no exception thrown, consider it successful
         // Update local timeline state
         final itemIndex = _timelineItems.indexWhere((item) => item.id == timelineId);
         if (itemIndex != -1) {
@@ -180,10 +160,6 @@ class TourGuideProvider extends ChangeNotifier {
         
         _logger.i('Timeline item completed successfully: $timelineId');
         return true;
-      } else {
-        _setError(response['message'] ?? 'Không thể hoàn thành mục lịch trình');
-        return false;
-      }
     } catch (e) {
       _logger.e('Error completing timeline item: $e');
       _setError('Có lỗi xảy ra khi hoàn thành mục lịch trình');
@@ -213,15 +189,10 @@ class TourGuideProvider extends ChangeNotifier {
         imageUrls: imageUrls,
       );
       
-      final response = await _tourGuideApiService.reportIncident(request);
+      await _tourGuideApiService.reportIncident(request);
 
-      if (response['success'] == true) {
-        _logger.i('Incident reported successfully');
-        return true;
-      } else {
-        _setError(response['message'] ?? 'Không thể báo cáo sự cố');
-        return false;
-      }
+      _logger.i('Incident reported successfully');
+      return true;
     } catch (e) {
       _logger.e('Error reporting incident: $e');
       _setError('Có lỗi xảy ra khi báo cáo sự cố');
@@ -238,15 +209,10 @@ class TourGuideProvider extends ChangeNotifier {
       _clearError();
       
       final request = NotifyGuestsRequest(message: message, isUrgent: isUrgent);
-      final response = await _tourGuideApiService.notifyGuests(operationId, request);
+      await _tourGuideApiService.notifyGuests(operationId, request);
 
-      if (response['success'] == true) {
-        _logger.i('Guests notified successfully');
-        return true;
-      } else {
-        _setError(response['message'] ?? 'Không thể gửi thông báo');
-        return false;
-      }
+      _logger.i('Guests notified successfully');
+      return true;
     } catch (e) {
       _logger.e('Error notifying guests: $e');
       _setError('Có lỗi xảy ra khi gửi thông báo');

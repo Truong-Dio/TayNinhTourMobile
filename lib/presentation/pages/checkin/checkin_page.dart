@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:qr_code_scanner/qr_code_scanner.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 import '../../providers/tour_guide_provider.dart';
 import '../../widgets/common/loading_overlay.dart';
@@ -9,7 +7,6 @@ import '../../widgets/checkin/tour_selection_widget.dart';
 import '../../widgets/checkin/guest_list_widget.dart';
 import '../../widgets/checkin/qr_scanner_widget.dart';
 import '../../../domain/entities/active_tour.dart';
-import '../../../domain/entities/tour_booking.dart';
 
 class CheckInPage extends StatefulWidget {
   const CheckInPage({super.key});

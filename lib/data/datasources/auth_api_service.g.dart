@@ -14,7 +14,7 @@ class _AuthApiService implements AuthApiService {
     this.baseUrl,
     this.errorLogger,
   }) {
-    baseUrl ??= 'http://localhost:5267/api';
+    baseUrl ??= 'https://tayninhtour.card-diversevercel.io.vn/api';
   }
 
   final Dio _dio;
@@ -37,7 +37,7 @@ class _AuthApiService implements AuthApiService {
     )
         .compose(
           _dio.options,
-          '/auth/login',
+          '/Auth/login',
           queryParameters: queryParameters,
           data: _data,
         )
@@ -71,7 +71,7 @@ class _AuthApiService implements AuthApiService {
     )
         .compose(
           _dio.options,
-          '/auth/refresh-token',
+          '/Auth/refresh-token',
           queryParameters: queryParameters,
           data: _data,
         )
@@ -104,7 +104,7 @@ class _AuthApiService implements AuthApiService {
     )
         .compose(
           _dio.options,
-          '/auth/logout',
+          '/Auth/logout',
           queryParameters: queryParameters,
           data: _data,
         )

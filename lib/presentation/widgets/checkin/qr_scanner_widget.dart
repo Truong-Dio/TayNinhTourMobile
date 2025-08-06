@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../domain/entities/active_tour.dart';
 
@@ -18,8 +18,7 @@ class QRScannerWidget extends StatefulWidget {
 }
 
 class _QRScannerWidgetState extends State<QRScannerWidget> {
-  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
-  QRViewController? controller;
+  MobileScannerController? controller;
   bool _hasPermission = false;
   bool _isScanning = false;
   String? _lastScannedCode;
@@ -28,6 +27,7 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
   void initState() {
     super.initState();
     _checkCameraPermission();
+    controller = MobileScannerController();
   }
 
   @override
@@ -50,44 +50,45 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
     }
   }
 
-  void _onQRViewCreated(QRViewController controller) {
-    this.controller = controller;
-    controller.scannedDataStream.listen((scanData) {
-      if (!_isScanning && scanData.code != null && scanData.code != _lastScannedCode) {
-        _handleQRScanned(scanData.code!);
+  void _onDetect(BarcodeCapture capture) {
+    final List<Barcode> barcodes = capture.barcodes;
+    for (final barcode in barcodes) {
+      if (!_isScanning && barcode.rawValue != null && barcode.rawValue != _lastScannedCode) {
+        _handleQRScanned(barcode.rawValue!);
+        break;
       }
-    });
+    }
   }
 
   Future<void> _handleQRScanned(String code) async {
     if (_isScanning) return;
-    
+
     setState(() {
       _isScanning = true;
       _lastScannedCode = code;
     });
 
-    // Pause scanning temporarily
-    await controller?.pauseCamera();
-
     try {
       await widget.onQRScanned(code);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Lỗi: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
 
     // Resume scanning after delay
     await Future.delayed(const Duration(seconds: 2));
-    await controller?.resumeCamera();
-    
-    setState(() {
-      _isScanning = false;
-    });
+
+    if (mounted) {
+      setState(() {
+        _isScanning = false;
+      });
+    }
   }
 
   @override
@@ -180,20 +181,13 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
             margin: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              overflow: Overflow.hidden,
             ),
+            clipBehavior: Clip.hardEdge,
             child: Stack(
               children: [
-                QRView(
-                  key: qrKey,
-                  onQRViewCreated: _onQRViewCreated,
-                  overlay: QrScannerOverlayShape(
-                    borderColor: Theme.of(context).primaryColor,
-                    borderRadius: 12,
-                    borderLength: 30,
-                    borderWidth: 8,
-                    cutOutSize: 250,
-                  ),
+                MobileScanner(
+                  controller: controller,
+                  onDetect: _onDetect,
                 ),
                 
                 // Scanning indicator
@@ -232,14 +226,14 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
             children: [
               ElevatedButton.icon(
                 onPressed: () async {
-                  await controller?.toggleFlash();
+                  await controller?.toggleTorch();
                 },
                 icon: const Icon(Icons.flash_on),
                 label: const Text('Flash'),
               ),
               ElevatedButton.icon(
                 onPressed: () async {
-                  await controller?.flipCamera();
+                  await controller?.switchCamera();
                 },
                 icon: const Icon(Icons.flip_camera_ios),
                 label: const Text('Lật camera'),

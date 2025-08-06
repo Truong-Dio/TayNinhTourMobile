@@ -1,13 +1,13 @@
 /// API Constants for TayNinh Tour Mobile App
 class ApiConstants {
-  // Base URLs
-  static const String baseUrl = 'http://localhost:5267/api';
-  static const String prodBaseUrl = 'https://api.tayninhtravel.com/api';
+  // Base URLs - Using production server only
+  static const String baseUrl = 'https://tayninhtour.card-diversevercel.io.vn/api';
+  static const String prodBaseUrl = 'https://tayninhtour.card-diversevercel.io.vn/api';
   
   // Auth endpoints
-  static const String login = '/auth/login';
-  static const String refreshToken = '/auth/refresh-token';
-  static const String logout = '/auth/logout';
+  static const String login = '/Auth/login';
+  static const String refreshToken = '/Auth/refresh-token';
+  static const String logout = '/Auth/logout';
   
   // Tour Guide endpoints
   static const String myActiveTours = '/TourGuide/my-active-tours';
