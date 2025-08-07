@@ -14,7 +14,7 @@ class _TourGuideApiService implements TourGuideApiService {
     this.baseUrl,
     this.errorLogger,
   }) {
-    baseUrl ??= 'https://tayninhtour.card-diversevercel.io.vn/api';
+    baseUrl ??= 'http://192.168.100.234:5267/api';
   }
 
   final Dio _dio;
@@ -96,7 +96,7 @@ class _TourGuideApiService implements TourGuideApiService {
   }
 
   @override
-  Future<List<TimelineItemModel>> getTourTimeline(String tourDetailsId) async {
+  Future<List<TimelineItemModel>> getTourTimeline(String operationId) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
     final _headers = <String, dynamic>{};
@@ -108,7 +108,7 @@ class _TourGuideApiService implements TourGuideApiService {
     )
         .compose(
           _dio.options,
-          '/TourGuide/tour/${tourDetailsId}/timeline',
+          '/TourGuide/tour/${operationId}/timeline',
           queryParameters: queryParameters,
           data: _data,
         )
@@ -233,6 +233,98 @@ class _TourGuideApiService implements TourGuideApiService {
         .compose(
           _dio.options,
           '/TourGuide/tour/${operationId}/notify-guests',
+          queryParameters: queryParameters,
+          data: _data,
+        )
+        .copyWith(
+            baseUrl: _combineBaseUrls(
+          _dio.options.baseUrl,
+          baseUrl,
+        )));
+    await _dio.fetch<void>(_options);
+  }
+
+  @override
+  Future<MyInvitationsResponseModel> getMyInvitations(String? status) async {
+    final _extra = <String, dynamic>{};
+    final queryParameters = <String, dynamic>{r'status': status};
+    queryParameters.removeWhere((k, v) => v == null);
+    final _headers = <String, dynamic>{};
+    const Map<String, dynamic>? _data = null;
+    final _options = _setStreamType<MyInvitationsResponseModel>(Options(
+      method: 'GET',
+      headers: _headers,
+      extra: _extra,
+    )
+        .compose(
+          _dio.options,
+          '/TourGuideInvitation/my-invitations',
+          queryParameters: queryParameters,
+          data: _data,
+        )
+        .copyWith(
+            baseUrl: _combineBaseUrls(
+          _dio.options.baseUrl,
+          baseUrl,
+        )));
+    final _result = await _dio.fetch<Map<String, dynamic>>(_options);
+    late MyInvitationsResponseModel _value;
+    try {
+      _value = MyInvitationsResponseModel.fromJson(_result.data!);
+    } on Object catch (e, s) {
+      errorLogger?.logError(e, s, _options);
+      rethrow;
+    }
+    return _value;
+  }
+
+  @override
+  Future<void> acceptInvitation(
+    String invitationId,
+    Map<String, dynamic> request,
+  ) async {
+    final _extra = <String, dynamic>{};
+    final queryParameters = <String, dynamic>{};
+    final _headers = <String, dynamic>{};
+    final _data = <String, dynamic>{};
+    _data.addAll(request);
+    final _options = _setStreamType<void>(Options(
+      method: 'POST',
+      headers: _headers,
+      extra: _extra,
+    )
+        .compose(
+          _dio.options,
+          '/TourGuideInvitation/${invitationId}/accept',
+          queryParameters: queryParameters,
+          data: _data,
+        )
+        .copyWith(
+            baseUrl: _combineBaseUrls(
+          _dio.options.baseUrl,
+          baseUrl,
+        )));
+    await _dio.fetch<void>(_options);
+  }
+
+  @override
+  Future<void> rejectInvitation(
+    String invitationId,
+    Map<String, dynamic> request,
+  ) async {
+    final _extra = <String, dynamic>{};
+    final queryParameters = <String, dynamic>{};
+    final _headers = <String, dynamic>{};
+    final _data = <String, dynamic>{};
+    _data.addAll(request);
+    final _options = _setStreamType<void>(Options(
+      method: 'POST',
+      headers: _headers,
+      extra: _extra,
+    )
+        .compose(
+          _dio.options,
+          '/TourGuideInvitation/${invitationId}/reject',
           queryParameters: queryParameters,
           data: _data,
         )

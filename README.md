@@ -116,12 +116,13 @@ Password: password123
 Role: Tour Guide
 ```
 
-### **API Endpoints Available**
-- `POST /Auth/login` - Authentication
+### **API Endpoints Available (Core HDV Functions)**
+- `POST /Authentication/login` - Authentication (corrected path)
+- `POST /Authentication/refresh-token` - Refresh JWT token
 - `GET /TourGuide/my-active-tours` - Get active tours
-- `GET /TourGuide/tour/{operationId}/bookings` - Get tour bookings
-- `GET /TourGuide/tour/{tourDetailsId}/timeline` - Get tour timeline
-- `POST /TourGuide/checkin/{bookingId}` - Check-in guest
+- `GET /TourGuide/tour/{operationId}/bookings` - Get tour bookings for check-in
+- `GET /TourGuide/tour/{operationId}/timeline` - Get tour timeline (corrected parameter)
+- `POST /TourGuide/checkin/{bookingId}` - Check-in guest via QR code
 - `POST /TourGuide/timeline/{timelineId}/complete` - Complete timeline item
 - `POST /TourGuide/incident/report` - Report incident
 - `POST /TourGuide/tour/{operationId}/notify-guests` - Notify guests

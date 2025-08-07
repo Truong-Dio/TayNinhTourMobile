@@ -12,6 +12,7 @@ import 'presentation/providers/tour_guide_provider.dart';
 import 'presentation/pages/auth/login_page.dart';
 import 'presentation/pages/dashboard/dashboard_page.dart';
 import 'core/constants/app_constants.dart';
+import 'core/constants/api_constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,8 +23,14 @@ void main() async {
   final dioClient = DioClient(storage: storage, logger: logger);
   
   // Initialize API services
-  final authApiService = AuthApiService(dioClient.dio);
-  final tourGuideApiService = TourGuideApiService(dioClient.dio);
+  final authApiService = AuthApiService(
+    dioClient.dio,
+    baseUrl: ApiConstants.baseUrl,
+  );
+  final tourGuideApiService = TourGuideApiService(
+    dioClient.dio,
+    baseUrl: ApiConstants.baseUrl,
+  );
   
   runApp(TayNinhTourApp(
     storage: storage,

@@ -86,8 +86,9 @@ class ApiTestHelper {
     for (final endpoint in endpoints) {
       try {
         final response = await _dio.get(endpoint);
-        results[endpoint] = response.statusCode == 200 || response.statusCode == 401; // 401 is expected without auth
-        _logger.i('Endpoint $endpoint: ${results[endpoint] ? "✅" : "❌"}');
+        final isSuccess = (response.statusCode == 200) || (response.statusCode == 401); // 401 is expected without auth
+        results[endpoint] = isSuccess;
+        _logger.i('Endpoint $endpoint: ${isSuccess ? "✅" : "❌"}');
       } catch (e) {
         results[endpoint] = false;
         _logger.e('Endpoint $endpoint failed: $e');

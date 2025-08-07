@@ -14,7 +14,7 @@ class _AuthApiService implements AuthApiService {
     this.baseUrl,
     this.errorLogger,
   }) {
-    baseUrl ??= 'https://tayninhtour.card-diversevercel.io.vn/api';
+    baseUrl ??= 'http://192.168.100.234:5267/api';
   }
 
   final Dio _dio;
@@ -37,7 +37,7 @@ class _AuthApiService implements AuthApiService {
     )
         .compose(
           _dio.options,
-          '/Auth/login',
+          '/Authentication/login',
           queryParameters: queryParameters,
           data: _data,
         )
@@ -71,7 +71,7 @@ class _AuthApiService implements AuthApiService {
     )
         .compose(
           _dio.options,
-          '/Auth/refresh-token',
+          '/Authentication/refresh-token',
           queryParameters: queryParameters,
           data: _data,
         )
@@ -89,31 +89,6 @@ class _AuthApiService implements AuthApiService {
       rethrow;
     }
     return _value;
-  }
-
-  @override
-  Future<void> logout() async {
-    final _extra = <String, dynamic>{};
-    final queryParameters = <String, dynamic>{};
-    final _headers = <String, dynamic>{};
-    const Map<String, dynamic>? _data = null;
-    final _options = _setStreamType<void>(Options(
-      method: 'POST',
-      headers: _headers,
-      extra: _extra,
-    )
-        .compose(
-          _dio.options,
-          '/Auth/logout',
-          queryParameters: queryParameters,
-          data: _data,
-        )
-        .copyWith(
-            baseUrl: _combineBaseUrls(
-          _dio.options.baseUrl,
-          baseUrl,
-        )));
-    await _dio.fetch<void>(_options);
   }
 
   RequestOptions _setStreamType<T>(RequestOptions requestOptions) {

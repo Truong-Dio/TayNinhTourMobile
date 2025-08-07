@@ -36,6 +36,7 @@ class DioClient {
     _dio.interceptors.addAll([
       _AuthInterceptor(_storage, _logger),
       _LoggingInterceptor(_logger),
+      _ResponseUnwrapInterceptor(_logger),
       _ErrorInterceptor(_logger),
     ]);
   }
@@ -214,6 +215,27 @@ class _LoggingInterceptor extends Interceptor {
     _logger.e('ERROR: ${err.message}');
     _logger.e('Response: ${err.response?.data}');
     handler.next(err);
+  }
+}
+
+/// Response unwrapping interceptor for envelope { isSuccess, statusCode, message, data }
+class _ResponseUnwrapInterceptor extends Interceptor {
+  final Logger _logger;
+  _ResponseUnwrapInterceptor(this._logger);
+
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    try {
+      final body = response.data;
+      if (body is Map<String, dynamic> && body.containsKey('isSuccess') && body.containsKey('statusCode')) {
+        // Unwrap to inner data (can be list, object or null)
+        response.data = body['data'];
+        _logger.d('UNWRAPPED DATA: ${response.data}');
+      }
+    } catch (e) {
+      _logger.w('Failed to unwrap response: $e');
+    }
+    handler.next(response);
   }
 }
 

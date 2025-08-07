@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:logger/logger.dart';
+import 'dart:convert';
 
 import '../../data/datasources/auth_api_service.dart';
 import '../../domain/entities/user.dart';
@@ -41,10 +42,23 @@ class AuthProvider extends ChangeNotifier {
       final userDataJson = await _storage.read(key: AppConstants.userDataKey);
       
       if (accessToken != null && userDataJson != null) {
-        // TODO: Validate token with server
-        // For now, assume token is valid if it exists
+        try {
+          final map = json.decode(userDataJson) as Map<String, dynamic>;
+          _user = User(
+            id: (map['id'] ?? '').toString(),
+            email: (map['email'] ?? '').toString(),
+            name: (map['name'] ?? '').toString(),
+            phoneNumber: map['phoneNumber']?.toString(),
+            role: (map['role'] ?? AppConstants.tourGuideRole).toString(),
+            isActive: (map['isActive'] ?? true) as bool,
+            createdAt: null,
+          );
+        } catch (e) {
+          _logger.w('Failed to parse stored user, clearing. Error: $e');
+          await _storage.delete(key: AppConstants.userDataKey);
+          _user = null;
+        }
         _isAuthenticated = true;
-        // TODO: Parse user data from JSON
         _logger.i('User is authenticated');
       } else {
         _isAuthenticated = false;
@@ -69,26 +83,38 @@ class AuthProvider extends ChangeNotifier {
       final request = LoginRequest(email: email, password: password);
       final response = await _authApiService.login(request);
       
-      if (response.success && response.accessToken != null && response.user != null) {
-        // Check if user has Tour Guide role
-        if (response.user!.role != AppConstants.tourGuideRole) {
-          _setError('Ứng dụng này chỉ dành cho Hướng dẫn viên');
-          return false;
-        }
-        
+      if (response.success && response.accessToken != null) {
         // Save tokens
         await _storage.write(key: AppConstants.accessTokenKey, value: response.accessToken);
         if (response.refreshToken != null) {
           await _storage.write(key: AppConstants.refreshTokenKey, value: response.refreshToken);
         }
         
-        // Save user data
-        // TODO: Save user data as JSON
+        // Build minimal user when missing
+        final userModel = response.user ?? User(
+          id: '',
+          email: email,
+          name: email.split('@').first,
+          role: AppConstants.tourGuideRole,
+          isActive: true,
+        );
+        
+        // Persist user as JSON
+        final userMap = {
+          'id': (userModel is User) ? userModel.id : (userModel as dynamic).id,
+          'email': (userModel is User) ? userModel.email : (userModel as dynamic).email,
+          'name': (userModel is User) ? userModel.name : (userModel as dynamic).name,
+          'phoneNumber': (userModel is User) ? userModel.phoneNumber : (userModel as dynamic).phoneNumber,
+          'role': (userModel is User) ? userModel.role : (userModel as dynamic).role,
+          'isActive': (userModel is User) ? userModel.isActive : (userModel as dynamic).isActive,
+        };
+        await _storage.write(key: AppConstants.userDataKey, value: json.encode(userMap));
         
         _isAuthenticated = true;
-        _user = response.user!.toEntity();
+        _user = (userModel is User) ? userModel : (userModel as dynamic) as User;
         
-        _logger.i('Login successful for user: ${_user!.email}');
+        _logger.i('Login successful for user: ${user?.email}');
+        notifyListeners();
         return true;
       } else {
         _setError(response.message ?? 'Đăng nhập thất bại');
@@ -112,20 +138,10 @@ class AuthProvider extends ChangeNotifier {
     try {
       _setLoading(true);
       
-      // Call logout API
-      try {
-        await _authApiService.logout();
-      } catch (e) {
-        _logger.w('Logout API call failed: $e');
-        // Continue with local logout even if API call fails
-      }
-      
-      // Clear local storage
       await _storage.delete(key: AppConstants.accessTokenKey);
       await _storage.delete(key: AppConstants.refreshTokenKey);
       await _storage.delete(key: AppConstants.userDataKey);
       
-      // Clear state
       _isAuthenticated = false;
       _user = null;
       _clearError();

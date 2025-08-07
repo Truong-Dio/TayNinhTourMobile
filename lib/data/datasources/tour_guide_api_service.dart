@@ -4,6 +4,7 @@ import 'package:retrofit/retrofit.dart';
 import '../models/active_tour_model.dart';
 import '../models/tour_booking_model.dart';
 import '../models/timeline_item_model.dart';
+import '../models/tour_invitation_model.dart';
 import '../../core/constants/api_constants.dart';
 
 part 'tour_guide_api_service.g.dart';
@@ -22,10 +23,10 @@ abstract class TourGuideApiService {
     @Path('operationId') String operationId,
   );
 
-  /// Get tour timeline for a specific tour details
-  @GET('/TourGuide/tour/{tourDetailsId}/timeline')
+  /// Get tour timeline for a specific tour operation
+  @GET('/TourGuide/tour/{operationId}/timeline')
   Future<List<TimelineItemModel>> getTourTimeline(
-    @Path('tourDetailsId') String tourDetailsId,
+    @Path('operationId') String operationId,
   );
   
   /// Check-in a guest
@@ -53,6 +54,26 @@ abstract class TourGuideApiService {
   Future<void> notifyGuests(
     @Path('operationId') String operationId,
     @Body() NotifyGuestsRequest request,
+  );
+
+  /// Get my tour invitations
+  @GET(ApiConstants.myInvitations)
+  Future<MyInvitationsResponseModel> getMyInvitations(
+    @Query('status') String? status,
+  );
+
+  /// Accept tour invitation
+  @POST('/TourGuideInvitation/{invitationId}/accept')
+  Future<void> acceptInvitation(
+    @Path('invitationId') String invitationId,
+    @Body() Map<String, dynamic> request,
+  );
+
+  /// Reject tour invitation
+  @POST('/TourGuideInvitation/{invitationId}/reject')
+  Future<void> rejectInvitation(
+    @Path('invitationId') String invitationId,
+    @Body() Map<String, dynamic> request,
   );
 }
 

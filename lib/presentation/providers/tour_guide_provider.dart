@@ -5,6 +5,7 @@ import '../../data/datasources/tour_guide_api_service.dart';
 import '../../domain/entities/active_tour.dart';
 import '../../domain/entities/tour_booking.dart';
 import '../../domain/entities/timeline_item.dart';
+import '../../domain/entities/tour_invitation.dart';
 
 class TourGuideProvider extends ChangeNotifier {
   final TourGuideApiService _tourGuideApiService;
@@ -21,6 +22,8 @@ class TourGuideProvider extends ChangeNotifier {
   List<ActiveTour> _activeTours = [];
   List<TourBooking> _tourBookings = [];
   List<TimelineItem> _timelineItems = [];
+  List<TourInvitation> _tourInvitations = [];
+  InvitationStatistics? _invitationStatistics;
   String? _errorMessage;
   
   // Getters
@@ -28,6 +31,8 @@ class TourGuideProvider extends ChangeNotifier {
   List<ActiveTour> get activeTours => _activeTours;
   List<TourBooking> get tourBookings => _tourBookings;
   List<TimelineItem> get timelineItems => _timelineItems;
+  List<TourInvitation> get tourInvitations => _tourInvitations;
+  InvitationStatistics? get invitationStatistics => _invitationStatistics;
   String? get errorMessage => _errorMessage;
   
   /// Get active tours for current tour guide
@@ -243,5 +248,92 @@ class TourGuideProvider extends ChangeNotifier {
     _tourBookings.clear();
     _timelineItems.clear();
     notifyListeners();
+  }
+
+  /// Get my tour invitations
+  Future<void> getMyInvitations({String? status}) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      final response = await _tourGuideApiService.getMyInvitations(status);
+      _tourInvitations = (response.invitations ?? []).map((model) => TourInvitation(
+        id: model.id,
+        status: model.status ?? 'pending',
+        invitedAt: DateTime.parse(model.invitedAt),
+        respondedAt: model.respondedAt != null ? DateTime.parse(model.respondedAt!) : null,
+        canAccept: model.canAccept ?? false,
+        canReject: model.canReject ?? false,
+        tourTitle: model.tourDetails?.title,
+        tourDescription: model.tourDetails?.description,
+      )).toList();
+
+      if (response.statistics != null) {
+        _invitationStatistics = InvitationStatistics(
+          totalInvitations: response.statistics!.totalInvitations,
+          pendingCount: response.statistics!.pendingCount,
+          acceptedCount: response.statistics!.acceptedCount,
+          rejectedCount: response.statistics!.rejectedCount,
+        );
+      }
+      _logger.i('Loaded ${_tourInvitations.length} tour invitations');
+    } catch (e) {
+      _logger.e('Error loading tour invitations: $e');
+      _setError('Có lỗi xảy ra khi tải danh sách lời mời');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Accept tour invitation
+  Future<bool> acceptInvitation(String invitationId, {String? notes}) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      final request = {
+        'notes': notes,
+      };
+
+      await _tourGuideApiService.acceptInvitation(invitationId, request);
+
+      // Refresh invitations list
+      await getMyInvitations();
+
+      _logger.i('Accepted invitation: $invitationId');
+      return true;
+    } catch (e) {
+      _logger.e('Error accepting invitation: $e');
+      _setError('Có lỗi xảy ra khi chấp nhận lời mời');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Reject tour invitation
+  Future<bool> rejectInvitation(String invitationId, {String? notes}) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      final request = {
+        'notes': notes,
+      };
+
+      await _tourGuideApiService.rejectInvitation(invitationId, request);
+
+      // Refresh invitations list
+      await getMyInvitations();
+
+      _logger.i('Rejected invitation: $invitationId');
+      return true;
+    } catch (e) {
+      _logger.e('Error rejecting invitation: $e');
+      _setError('Có lỗi xảy ra khi từ chối lời mời');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
   }
 }

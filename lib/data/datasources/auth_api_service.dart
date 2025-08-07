@@ -13,14 +13,10 @@ abstract class AuthApiService {
   /// Login
   @POST(ApiConstants.login)
   Future<LoginResponse> login(@Body() LoginRequest request);
-  
+
   /// Refresh token
   @POST(ApiConstants.refreshToken)
   Future<RefreshTokenResponse> refreshToken(@Body() RefreshTokenRequest request);
-  
-  /// Logout
-  @POST(ApiConstants.logout)
-  Future<void> logout();
 }
 
 /// Login request
@@ -56,12 +52,38 @@ class LoginResponse {
   });
   
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
+    // Server spec ResponseAuthenticationDto: isSuccess, token, refreshToken, userId, email, name, ...
+    final bool isSuccess = (json['isSuccess'] ?? json['success'] ?? false) as bool;
+    final String? token = (json['token'] ?? json['accessToken']) as String?;
+    final String? rToken = (json['refreshToken']) as String?;
+
+    // Build user if fields available (no role in spec)
+    UserModel? user;
+    if (json.containsKey('user')) {
+      try {
+        user = UserModel.fromJson(json['user'] as Map<String, dynamic>);
+      } catch (_) {
+        user = null;
+      }
+    } else if (json['userId'] != null || json['email'] != null || json['name'] != null) {
+      // Create minimal user model from flat fields
+      user = UserModel(
+        id: (json['userId'] ?? json['id'] ?? '').toString(),
+        email: (json['email'] ?? '').toString(),
+        name: (json['name'] ?? '').toString(),
+        phoneNumber: json['phoneNumber']?.toString(),
+        role: 'Tour Guide',
+        isActive: true,
+        createdAt: null,
+      );
+    }
+
     return LoginResponse(
-      success: json['success'] ?? false,
-      message: json['message'],
-      accessToken: json['accessToken'],
-      refreshToken: json['refreshToken'],
-      user: json['user'] != null ? UserModel.fromJson(json['user']) : null,
+      success: isSuccess,
+      message: json['message'] as String?,
+      accessToken: token,
+      refreshToken: rToken,
+      user: user,
     );
   }
 }
@@ -85,20 +107,20 @@ class RefreshTokenResponse {
   final String? message;
   final String? accessToken;
   final String? refreshToken;
-  
+
   RefreshTokenResponse({
     required this.success,
     this.message,
     this.accessToken,
     this.refreshToken,
   });
-  
+
   factory RefreshTokenResponse.fromJson(Map<String, dynamic> json) {
     return RefreshTokenResponse(
-      success: json['success'] ?? false,
-      message: json['message'],
-      accessToken: json['accessToken'],
-      refreshToken: json['refreshToken'],
+      success: (json['isSuccess'] ?? json['success'] ?? false) as bool,
+      message: json['message'] as String?,
+      accessToken: (json['token'] ?? json['accessToken']) as String?,
+      refreshToken: json['refreshToken'] as String?,
     );
   }
 }
