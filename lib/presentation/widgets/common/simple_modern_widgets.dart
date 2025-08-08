@@ -48,6 +48,7 @@ class SimpleActionCard extends StatelessWidget {
   final Color color;
   final VoidCallback? onTap;
   final bool isEnabled;
+  final int? badgeCount;
 
   const SimpleActionCard({
     super.key,
@@ -57,6 +58,7 @@ class SimpleActionCard extends StatelessWidget {
     required this.color,
     this.onTap,
     this.isEnabled = true,
+    this.badgeCount,
   });
 
   @override
@@ -83,17 +85,46 @@ class SimpleActionCard extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: (isEnabled ? color : Colors.grey).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                icon,
-                size: 28,
-                color: isEnabled ? color : Colors.grey,
-              ),
+            Stack(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: (isEnabled ? color : Colors.grey).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 28,
+                    color: isEnabled ? color : Colors.grey,
+                  ),
+                ),
+                if (badgeCount != null && badgeCount! > 0)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        badgeCount! > 99 ? '99+' : badgeCount.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 12),
             Text(
@@ -128,6 +159,7 @@ class SimpleTourCard extends StatelessWidget {
   final VoidCallback? onCheckIn;
   final VoidCallback? onTimeline;
   final VoidCallback? onNotification;
+  final VoidCallback? onProgress;
 
   const SimpleTourCard({
     super.key,
@@ -135,6 +167,7 @@ class SimpleTourCard extends StatelessWidget {
     this.onCheckIn,
     this.onTimeline,
     this.onNotification,
+    this.onProgress,
   });
 
   @override
@@ -301,36 +334,54 @@ class SimpleTourCard extends StatelessWidget {
             const SizedBox(height: 20),
 
             // Action Buttons
-            Row(
+            Column(
               children: [
-                Expanded(
-                  child: _buildActionButton(
-                    context,
-                    Icons.qr_code_scanner,
-                    'Check-in',
-                    AppTheme.primaryGradient,
-                    onCheckIn,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildActionButton(
+                        context,
+                        Icons.qr_code_scanner,
+                        'Check-in',
+                        AppTheme.primaryGradient,
+                        onCheckIn,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildActionButton(
+                        context,
+                        Icons.timeline,
+                        'Timeline',
+                        AppTheme.secondaryGradient,
+                        onTimeline,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildActionButton(
-                    context,
-                    Icons.timeline,
-                    'Timeline',
-                    AppTheme.secondaryGradient,
-                    onTimeline,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildActionButton(
-                    context,
-                    Icons.message,
-                    'Thông báo',
-                    AppTheme.warningGradient,
-                    onNotification,
-                  ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildActionButton(
+                        context,
+                        Icons.analytics,
+                        'Tiến độ',
+                        AppTheme.successGradient,
+                        onProgress,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildActionButton(
+                        context,
+                        Icons.message,
+                        'Thông báo',
+                        AppTheme.warningGradient,
+                        onNotification,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

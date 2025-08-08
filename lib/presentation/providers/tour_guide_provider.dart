@@ -44,6 +44,9 @@ class TourGuideProvider extends ChangeNotifier {
       final response = await _tourGuideApiService.getMyActiveTours();
       _activeTours = response.map((model) => model.toEntity()).toList();
       _logger.i('Loaded ${_activeTours.length} active tours');
+
+      // TODO: Load upcoming tour slots when tour guide is assigned
+      // await _loadUpcomingTourSlots();
     } catch (e) {
       _logger.e('Error loading active tours: $e');
       _setError('Có lỗi xảy ra khi tải danh sách tours');
@@ -51,6 +54,20 @@ class TourGuideProvider extends ChangeNotifier {
       _setLoading(false);
     }
   }
+
+  /// Load upcoming tour slots for all active tours
+  Future<void> _loadUpcomingTourSlots() async {
+    try {
+      // TODO: Implement when we have proper tour guide assignment
+      // For now, just log that we would load tour slots
+
+      _logger.i('Would load upcoming tour slots here');
+    } catch (e) {
+      _logger.e('Error loading upcoming tour slots: $e');
+    }
+  }
+
+
   
   /// Get tour bookings for a specific tour operation
   Future<void> getTourBookings(String operationId) async {

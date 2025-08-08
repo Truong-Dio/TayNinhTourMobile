@@ -5,15 +5,18 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/tour_guide_provider.dart';
-import '../../widgets/common/loading_overlay.dart';
+
 import '../../widgets/common/simple_modern_widgets.dart';
 import '../../widgets/common/modern_skeleton_loader.dart';
 import '../checkin/checkin_page.dart';
 import '../timeline/timeline_page.dart';
+import '../timeline/timeline_progress_page.dart';
+import '../tour_progress/tour_progress_page.dart';
 import '../incident/incident_report_page.dart';
 import '../notification/guest_notification_page.dart';
 import '../invitations/tour_invitations_page.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../domain/entities/tour_invitation.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -33,7 +36,10 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Future<void> _loadData() async {
     final tourGuideProvider = context.read<TourGuideProvider>();
-    await tourGuideProvider.getMyActiveTours();
+    await Future.wait([
+      tourGuideProvider.getMyActiveTours(),
+      tourGuideProvider.getMyInvitations(),
+    ]);
   }
 
   Future<void> _handleLogout() async {
@@ -73,7 +79,7 @@ class _DashboardPageState extends State<DashboardPage> {
             icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.mail_outline),
@@ -90,7 +96,7 @@ class _DashboardPageState extends State<DashboardPage> {
             icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.refresh),
@@ -106,7 +112,7 @@ class _DashboardPageState extends State<DashboardPage> {
             icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.more_vert),
@@ -169,6 +175,11 @@ class _DashboardPageState extends State<DashboardPage> {
 
                         const SizedBox(height: 32),
 
+                        // Pending Invitations
+                        _buildPendingInvitationsSection(tourGuideProvider),
+
+                        const SizedBox(height: 32),
+
                         // Active Tours
                         _buildModernActiveToursSection(tourGuideProvider),
 
@@ -211,7 +222,7 @@ class _DashboardPageState extends State<DashboardPage> {
               gradient: AppTheme.primaryGradient,
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.primaryColor.withOpacity(0.3),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -252,7 +263,7 @@ class _DashboardPageState extends State<DashboardPage> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
@@ -266,46 +277,7 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildWelcomeSection(AuthProvider authProvider) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 30,
-              backgroundColor: Theme.of(context).primaryColor,
-              child: const Icon(
-                Icons.person,
-                size: 30,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Xin chào!',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  Text(
-                    authProvider.user?.name ?? 'Hướng dẫn viên',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  Text(
-                    'Chúc bạn có một ngày làm việc hiệu quả',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildModernQuickActions() {
     return Consumer<TourGuideProvider>(
@@ -367,11 +339,13 @@ class _DashboardPageState extends State<DashboardPage> {
                       } : null,
                     );
                   case 2:
+                    final pendingCount = tourGuideProvider.invitationStatistics?.pendingCount ?? 0;
                     return SimpleActionCard(
                       icon: Icons.mail_outline,
                       title: 'Lời mời tour',
-                      subtitle: 'Xem lời mời',
-                      color: AppTheme.secondaryColor,
+                      subtitle: pendingCount > 0 ? '$pendingCount lời mời mới' : 'Xem lời mời',
+                      color: pendingCount > 0 ? AppTheme.errorColor : AppTheme.secondaryColor,
+                      badgeCount: pendingCount > 0 ? pendingCount : null,
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
@@ -406,165 +380,9 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildQuickActions() {
-    return Consumer<TourGuideProvider>(
-      builder: (context, tourGuideProvider, child) {
-        final hasActiveTours = tourGuideProvider.activeTours.isNotEmpty;
-        final firstTour = hasActiveTours ? tourGuideProvider.activeTours.first : null;
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Thao tác nhanh',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildActionCard(
-                    icon: MdiIcons.qrcodeScan,
-                    title: 'Check-in',
-                    subtitle: hasActiveTours ? 'Quét QR khách hàng' : 'Không có tour',
-                    color: hasActiveTours ? Colors.blue : Colors.grey,
-                    onTap: hasActiveTours ? () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => CheckInPage(tourId: firstTour!.id),
-                        ),
-                      );
-                    } : null,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildActionCard(
-                    icon: MdiIcons.timelineOutline,
-                    title: 'Timeline',
-                    subtitle: hasActiveTours ? 'Theo dõi lịch trình' : 'Không có tour',
-                    color: hasActiveTours ? Colors.green : Colors.grey,
-                    onTap: hasActiveTours ? () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => TimelinePage(tourId: firstTour!.id),
-                        ),
-                      );
-                    } : null,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildActionCard(
-                    icon: Icons.mail_outline,
-                    title: 'Lời mời tour',
-                    subtitle: 'Xem lời mời',
-                    color: Colors.purple,
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const TourInvitationsPage(),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildActionCard(
-                    icon: MdiIcons.alertCircleOutline,
-                    title: 'Báo cáo sự cố',
-                    subtitle: 'Thông báo vấn đề',
-                    color: Colors.red,
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const IncidentReportPage(),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildActionCard(
-                    icon: MdiIcons.messageTextOutline,
-                    title: 'Thông báo',
-                    subtitle: hasActiveTours ? 'Gửi tin nhắn' : 'Không có tour',
-                    color: hasActiveTours ? Colors.orange : Colors.grey,
-                    onTap: hasActiveTours ? () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => GuestNotificationPage(tourId: firstTour!.id),
-                        ),
-                      );
-                    } : null,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Container(), // Empty space for symmetry
-                ),
-              ],
-            ),
-          ],
-        );
-      },
-    );
-  }
 
-  Widget _buildActionCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-    VoidCallback? onTap,
-  }) {
-    final isEnabled = onTap != null;
 
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Opacity(
-          opacity: isEnabled ? 1.0 : 0.6,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Icon(
-                  icon,
-                  size: 32,
-                  color: color,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium,
-                  textAlign: TextAlign.center,
-                ),
-                Text(
-                  subtitle,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: isEnabled ? null : Colors.grey[500],
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildModernActiveToursSection(TourGuideProvider tourGuideProvider) {
     return Column(
@@ -574,7 +392,7 @@ class _DashboardPageState extends State<DashboardPage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Tours hôm nay',
+              'Tours được phân công',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
@@ -599,6 +417,11 @@ class _DashboardPageState extends State<DashboardPage> {
           ],
         ),
         const SizedBox(height: 20),
+
+        // Always show quick actions
+        _buildQuickActionsSection(),
+        const SizedBox(height: 24),
+
         if (tourGuideProvider.activeTours.isEmpty)
           _buildEmptyToursCard()
         else
@@ -614,7 +437,14 @@ class _DashboardPageState extends State<DashboardPage> {
             onTimeline: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => TimelinePage(tourId: tour.id),
+                  builder: (context) => TimelineProgressPage(tourId: tour.id),
+                ),
+              );
+            },
+            onProgress: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => TourProgressPage(tourId: tour.id),
                 ),
               );
             },
@@ -630,6 +460,154 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  Widget _buildQuickActionsSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Thao tác nhanh',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[800],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildActionButton(
+                  icon: Icons.qr_code_scanner,
+                  label: 'Check-in',
+                  subtitle: 'Không có tour',
+                  onTap: () {
+                    // Show message if no active tours
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Không có tour nào để check-in'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildActionButton(
+                  icon: Icons.timeline,
+                  label: 'Timeline',
+                  subtitle: 'Không có tour',
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Không có tour nào để xem timeline'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildActionButton(
+                  icon: Icons.email,
+                  label: 'Lời mời tour',
+                  subtitle: 'Xem lời mời',
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const TourInvitationsPage(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildActionButton(
+                  icon: Icons.trending_up,
+                  label: 'Tiến độ',
+                  subtitle: 'Không có tour',
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const TourProgressPage(tourId: ''),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              size: 32,
+              color: Colors.grey[600],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[500],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildEmptyToursCard() {
     return Container(
       padding: const EdgeInsets.all(32),
@@ -641,7 +619,7 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Colors.grey.withOpacity(0.2),
+          color: Colors.grey.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -651,7 +629,7 @@ class _DashboardPageState extends State<DashboardPage> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.1),
+                color: Colors.grey.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(
@@ -662,7 +640,7 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Không có tour nào hôm nay',
+              'Chưa có tour được phân công',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 color: Colors.grey[600],
                 fontWeight: FontWeight.w600,
@@ -670,7 +648,7 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Hãy nghỉ ngơi và chuẩn bị cho những tour sắp tới!',
+              'Kiểm tra lời mời tour để nhận thêm công việc!',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Colors.grey[500],
               ),
@@ -682,256 +660,11 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildActiveToursSection(TourGuideProvider tourGuideProvider) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Tours hôm nay',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            if (tourGuideProvider.activeTours.isNotEmpty)
-              Text(
-                '${tourGuideProvider.activeTours.length} tour',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey[600],
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        if (tourGuideProvider.activeTours.isEmpty)
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Center(
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.event_busy,
-                      size: 48,
-                      color: Colors.grey[400],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Không có tour nào hôm nay',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Hãy nghỉ ngơi và chuẩn bị cho những tour sắp tới!',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[500],
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          )
-        else
-          ...tourGuideProvider.activeTours.map((tour) => _buildTourCard(tour)),
-      ],
-    );
-  }
 
-  Widget _buildTourCard(dynamic tour) {
-    final checkedInPercent = tour.bookingsCount > 0
-        ? (tour.checkedInCount / tour.bookingsCount * 100).round()
-        : 0;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Tour Header
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.tour,
-                    color: Theme.of(context).primaryColor,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        tour.title,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.location_on_outlined,
-                            size: 16,
-                            color: Colors.grey[600],
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              '${tour.tourTemplate.startLocation} → ${tour.tourTemplate.endLocation}',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.grey[600],
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
 
-            const SizedBox(height: 16),
 
-            // Tour Stats
-            Row(
-              children: [
-                Expanded(
-                  child: _buildTourStat(
-                    icon: Icons.people_outline,
-                    label: 'Khách hàng',
-                    value: '${tour.currentBookings}/${tour.maxGuests}',
-                    color: Colors.blue,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildTourStat(
-                    icon: Icons.check_circle_outline,
-                    label: 'Check-in',
-                    value: '${tour.checkedInCount}/${tour.bookingsCount}',
-                    color: checkedInPercent >= 70 ? Colors.green : Colors.orange,
-                  ),
-                ),
-              ],
-            ),
 
-            const SizedBox(height: 16),
-
-            // Action Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => CheckInPage(tourId: tour.id),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.qr_code_scanner, size: 18),
-                    label: const Text('Check-in'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => TimelinePage(tourId: tour.id),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.timeline, size: 18),
-                    label: const Text('Timeline'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => GuestNotificationPage(tourId: tour.id),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.message, size: 18),
-                    label: const Text('Thông báo'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTourStat({
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color color,
-  }) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 16,
-          color: color,
-        ),
-        const SizedBox(width: 6),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              value,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.grey[600],
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
 
   Widget _buildModernStatisticsSection(TourGuideProvider tourGuideProvider) {
     final totalTours = tourGuideProvider.activeTours.length;
@@ -945,7 +678,7 @@ class _DashboardPageState extends State<DashboardPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Thống kê hôm nay',
+          'Thống kê công việc',
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
             fontWeight: FontWeight.bold,
             color: Colors.black87,
@@ -966,7 +699,7 @@ class _DashboardPageState extends State<DashboardPage> {
             switch (index) {
               case 0:
                 return SimpleStatCard(
-                  title: 'Tours hôm nay',
+                  title: 'Tours được phân công',
                   value: totalTours,
                   icon: Icons.tour,
                   gradient: AppTheme.primaryGradient,
@@ -1001,74 +734,196 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildStatisticsSection(TourGuideProvider tourGuideProvider) {
+
+
+  Widget _buildPendingInvitationsSection(TourGuideProvider tourGuideProvider) {
+    final pendingCount = tourGuideProvider.invitationStatistics?.pendingCount ?? 0;
+    final pendingInvitations = tourGuideProvider.tourInvitations
+        .where((invitation) => invitation.status == 'pending')
+        .take(3)
+        .toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Thống kê',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: 12),
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Expanded(
-              child: _buildStatCard(
-                title: 'Tours hôm nay',
-                value: tourGuideProvider.activeTours.length.toString(),
-                icon: Icons.today,
-                color: Colors.blue,
-              ),
+            Row(
+              children: [
+                Text(
+                  'Lời mời đang chờ',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                if (pendingCount > 0) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.errorColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '$pendingCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildStatCard(
-                title: 'Khách hàng',
-                value: tourGuideProvider.activeTours
-                    .fold<int>(0, (sum, tour) => sum + tour.currentBookings)
-                    .toString(),
-                icon: Icons.people,
-                color: Colors.green,
+            if (pendingCount > 0)
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const TourInvitationsPage(),
+                    ),
+                  );
+                },
+                child: Text(
+                  'Xem tất cả',
+                  style: TextStyle(
+                    color: AppTheme.primaryColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
-            ),
           ],
         ),
+        const SizedBox(height: 20),
+        if (pendingCount == 0)
+          _buildEmptyInvitationsCard()
+        else
+          ...pendingInvitations.map((invitation) => _buildInvitationCard(invitation)),
       ],
     );
   }
 
-  Widget _buildStatCard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              size: 32,
-              color: color,
+  Widget _buildEmptyInvitationsCard() {
+    return SimpleGlassmorphicCard(
+      child: Column(
+        children: [
+          Icon(
+            Icons.mail_outline,
+            size: 48,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Không có lời mời nào',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: color,
-                fontWeight: FontWeight.bold,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Bạn sẽ nhận được thông báo khi có lời mời mới',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Colors.grey[500],
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInvitationCard(TourInvitation invitation) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: SimpleGlassmorphicCard(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const TourInvitationsPage(),
+            ),
+          );
+        },
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                gradient: AppTheme.secondaryGradient,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.mail,
+                color: Colors.white,
+                size: 24,
               ),
             ),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.bodySmall,
-              textAlign: TextAlign.center,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    invitation.tourTitle ?? 'Lời mời tour',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Nhận lúc: ${_formatDateTime(invitation.invitedAt)}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppTheme.warningColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppTheme.warningColor.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Text(
+                'Chờ phản hồi',
+                style: TextStyle(
+                  color: AppTheme.warningColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
         ),
       ),
     );
   }
+
+  String _formatDateTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inDays > 0) {
+      return '${difference.inDays} ngày trước';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} giờ trước';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} phút trước';
+    } else {
+      return 'Vừa xong';
+    }
+  }
+
+
 }

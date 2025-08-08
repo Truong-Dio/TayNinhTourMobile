@@ -75,7 +75,18 @@ abstract class TourGuideApiService {
     @Path('invitationId') String invitationId,
     @Body() Map<String, dynamic> request,
   );
+
+
 }
+
+// TODO: Add TourSlotsResponse when needed
+// class TourSlotsResponse {
+//   final bool success;
+//   final String message;
+//   final List<TourSlotModel> data;
+//   final int totalCount;
+//   final String tourDetailsId;
+// }
 
 
 
