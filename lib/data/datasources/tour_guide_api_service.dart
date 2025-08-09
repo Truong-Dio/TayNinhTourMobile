@@ -4,6 +4,8 @@ import 'package:retrofit/retrofit.dart';
 import '../models/active_tour_model.dart';
 import '../models/tour_booking_model.dart';
 import '../models/timeline_item_model.dart';
+import '../models/timeline_progress_models.dart';
+import '../models/timeline_request_models.dart';
 import '../models/tour_invitation_model.dart';
 import '../models/tour_slot_model.dart';
 import '../../core/constants/api_constants.dart';
