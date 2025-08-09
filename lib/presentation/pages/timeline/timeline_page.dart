@@ -67,13 +67,13 @@ class _TimelinePageState extends State<TimelinePage> {
   }
 
   Future<void> _completeTimelineItem(TimelineItem item) async {
-    final confirmed = await _showCompleteDialog(item);
-    if (!confirmed || !mounted) return;
+    final result = await _showCompleteDialog(item);
+    if (result == null || !mounted) return;
 
     final tourGuideProvider = context.read<TourGuideProvider>();
     final success = await tourGuideProvider.completeTimelineItem(
       item.id,
-      notes: 'Hoàn thành bởi HDV',
+      notes: result['notes'],
     );
 
     if (mounted) {
@@ -88,10 +88,12 @@ class _TimelinePageState extends State<TimelinePage> {
     }
   }
 
-  Future<bool> _showCompleteDialog(TimelineItem item) async {
-    if (!mounted) return false;
+  Future<Map<String, dynamic>?> _showCompleteDialog(TimelineItem item) async {
+    if (!mounted) return null;
 
-    final result = await showDialog<bool>(
+    final notesController = TextEditingController();
+
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Hoàn thành lịch trình'),
@@ -111,15 +113,29 @@ class _TimelinePageState extends State<TimelinePage> {
               'Bạn có chắc chắn đã hoàn thành mục lịch trình này?',
               style: TextStyle(fontWeight: FontWeight.w500),
             ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: notesController,
+              decoration: const InputDecoration(
+                labelText: 'Ghi chú (tùy chọn)',
+                hintText: 'Nhập ghi chú về việc hoàn thành...',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+              maxLength: 200,
+            ),
           ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
+            onPressed: () => Navigator.of(context).pop(null),
             child: const Text('Hủy'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
+            onPressed: () => Navigator.of(context).pop({
+              'confirmed': true,
+              'notes': notesController.text.trim().isEmpty ? null : notesController.text.trim(),
+            }),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
               foregroundColor: Colors.white,
@@ -130,7 +146,8 @@ class _TimelinePageState extends State<TimelinePage> {
       ),
     );
 
-    return result ?? false;
+    notesController.dispose();
+    return result;
   }
 
   void _showMessage(String message, {bool isError = false}) {

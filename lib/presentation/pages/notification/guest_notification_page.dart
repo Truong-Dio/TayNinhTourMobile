@@ -24,23 +24,35 @@ class _GuestNotificationPageState extends State<GuestNotificationPage> {
 
   final List<Map<String, String>> _messageTemplates = [
     {
-      'title': 'Bắt đầu tour',
+      'title': '🚌 Bắt đầu tour',
       'message': 'Chào mừng quý khách! Tour đã chính thức bắt đầu. Chúc quý khách có những trải nghiệm tuyệt vời!',
     },
     {
-      'title': 'Đến điểm tham quan',
+      'title': '📍 Đến điểm tham quan',
       'message': 'Chúng ta đã đến [Tên địa điểm]. Quý khách vui lòng tập trung và làm theo hướng dẫn của HDV.',
     },
     {
-      'title': 'Nghỉ giải lao',
+      'title': '☕ Nghỉ giải lao',
       'message': 'Chúng ta sẽ nghỉ giải lao 15 phút tại đây. Quý khách vui lòng có mặt đúng giờ để tiếp tục hành trình.',
     },
     {
-      'title': 'Thay đổi lịch trình',
+      'title': '🍽️ Thời gian ăn uống',
+      'message': 'Đã đến giờ ăn [bữa sáng/trưa/tối]. Quý khách vui lòng tập trung tại nhà hàng để cùng dùng bữa.',
+    },
+    {
+      'title': '⚠️ Thay đổi lịch trình',
       'message': 'Có thay đổi nhỏ trong lịch trình. HDV sẽ thông báo chi tiết. Cảm ơn quý khách đã thông cảm.',
     },
     {
-      'title': 'Kết thúc tour',
+      'title': '🚨 Thông báo khẩn cấp',
+      'message': 'Thông báo quan trọng: [Nội dung khẩn cấp]. Quý khách vui lòng làm theo hướng dẫn của HDV.',
+    },
+    {
+      'title': '📸 Chụp ảnh lưu niệm',
+      'message': 'Đây là địa điểm chụp ảnh đẹp! Quý khách có thể chụp ảnh lưu niệm tại đây trong 10 phút.',
+    },
+    {
+      'title': '🏁 Kết thúc tour',
       'message': 'Tour đã kết thúc. Cảm ơn quý khách đã tham gia. Chúc quý khách về nhà an toàn!',
     },
   ];
@@ -139,6 +151,90 @@ class _GuestNotificationPageState extends State<GuestNotificationPage> {
     );
   }
 
+  Widget _buildMessageTemplates() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Mẫu tin nhắn',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: 120,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: _messageTemplates.length,
+            itemBuilder: (context, index) {
+              final template = _messageTemplates[index];
+              return Container(
+                width: 200,
+                margin: const EdgeInsets.only(right: 12),
+                child: Card(
+                  elevation: 2,
+                  child: InkWell(
+                    onTap: () {
+                      _messageController.text = template['message']!;
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            template['title']!,
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 8),
+                          Expanded(
+                            child: Text(
+                              template['message']!,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.grey[600],
+                              ),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Icon(
+                                Icons.touch_app,
+                                size: 16,
+                                color: Colors.grey[500],
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Chạm để sử dụng',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -184,6 +280,11 @@ class _GuestNotificationPageState extends State<GuestNotificationPage> {
                     ),
 
                     const SizedBox(height: 24),
+
+                    // Message templates
+                    _buildMessageTemplates(),
+
+                    const SizedBox(height: 16),
 
                     // Message field
                     TextFormField(

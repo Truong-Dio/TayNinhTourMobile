@@ -134,7 +134,7 @@ class _TourGuideApiService implements TourGuideApiService {
   @override
   Future<void> checkInGuest(
     String bookingId,
-    CheckInRequest request,
+    CheckInGuestRequest request,
   ) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
@@ -245,6 +245,145 @@ class _TourGuideApiService implements TourGuideApiService {
   }
 
   @override
+  Future<List<String>> uploadIncidentImages(List<MultipartFile> files) async {
+    final _extra = <String, dynamic>{};
+    final queryParameters = <String, dynamic>{};
+    final _headers = <String, dynamic>{};
+    final _data = FormData();
+    _data.files.addAll(files.map((i) => MapEntry('files', i)));
+    final _options = _setStreamType<List<String>>(Options(
+      method: 'POST',
+      headers: _headers,
+      extra: _extra,
+      contentType: 'multipart/form-data',
+    )
+        .compose(
+          _dio.options,
+          '/TourGuide/incident/upload-images',
+          queryParameters: queryParameters,
+          data: _data,
+        )
+        .copyWith(
+            baseUrl: _combineBaseUrls(
+          _dio.options.baseUrl,
+          baseUrl,
+        )));
+    final _result = await _dio.fetch<List<dynamic>>(_options);
+    late List<String> _value;
+    try {
+      _value = _result.data!.cast<String>();
+    } on Object catch (e, s) {
+      errorLogger?.logError(e, s, _options);
+      rethrow;
+    }
+    return _value;
+  }
+
+  @override
+  Future<TourSlotsResponse> getTourSlots(String tourDetailsId) async {
+    final _extra = <String, dynamic>{};
+    final queryParameters = <String, dynamic>{r'tourDetailsId': tourDetailsId};
+    final _headers = <String, dynamic>{};
+    const Map<String, dynamic>? _data = null;
+    final _options = _setStreamType<TourSlotsResponse>(Options(
+      method: 'GET',
+      headers: _headers,
+      extra: _extra,
+    )
+        .compose(
+          _dio.options,
+          '/TourSlot',
+          queryParameters: queryParameters,
+          data: _data,
+        )
+        .copyWith(
+            baseUrl: _combineBaseUrls(
+          _dio.options.baseUrl,
+          baseUrl,
+        )));
+    final _result = await _dio.fetch<Map<String, dynamic>>(_options);
+    late TourSlotsResponse _value;
+    try {
+      _value = TourSlotsResponse.fromJson(_result.data!);
+    } on Object catch (e, s) {
+      errorLogger?.logError(e, s, _options);
+      rethrow;
+    }
+    return _value;
+  }
+
+  @override
+  Future<TourSlotDetailsResponse> getTourSlotDetails(String tourSlotId) async {
+    final _extra = <String, dynamic>{};
+    final queryParameters = <String, dynamic>{};
+    final _headers = <String, dynamic>{};
+    const Map<String, dynamic>? _data = null;
+    final _options = _setStreamType<TourSlotDetailsResponse>(Options(
+      method: 'GET',
+      headers: _headers,
+      extra: _extra,
+    )
+        .compose(
+          _dio.options,
+          '/TourSlot/${tourSlotId}/tour-details-and-bookings',
+          queryParameters: queryParameters,
+          data: _data,
+        )
+        .copyWith(
+            baseUrl: _combineBaseUrls(
+          _dio.options.baseUrl,
+          baseUrl,
+        )));
+    final _result = await _dio.fetch<Map<String, dynamic>>(_options);
+    late TourSlotDetailsResponse _value;
+    try {
+      _value = TourSlotDetailsResponse.fromJson(_result.data!);
+    } on Object catch (e, s) {
+      errorLogger?.logError(e, s, _options);
+      rethrow;
+    }
+    return _value;
+  }
+
+  @override
+  Future<TimelineResponse> getTimeline(
+    String tourDetailsId,
+    bool includeShopInfo,
+  ) async {
+    final _extra = <String, dynamic>{};
+    final queryParameters = <String, dynamic>{
+      r'includeShopInfo': includeShopInfo
+    };
+    final _headers = <String, dynamic>{};
+    const Map<String, dynamic>? _data = null;
+    final _options = _setStreamType<TimelineResponse>(Options(
+      method: 'GET',
+      headers: _headers,
+      extra: _extra,
+    )
+        .compose(
+          _dio.options,
+          '/TourDetails/${tourDetailsId}/timeline',
+          queryParameters: queryParameters,
+          data: _data,
+        )
+        .copyWith(
+            baseUrl: _combineBaseUrls(
+          _dio.options.baseUrl,
+          baseUrl,
+        )));
+    final _result = await _dio.fetch<Map<String, dynamic>>(_options);
+    late TimelineResponse _value;
+    try {
+      _value = TimelineResponse.fromJson(_result.data!);
+    } on Object catch (e, s) {
+      errorLogger?.logError(e, s, _options);
+      rethrow;
+    }
+    return _value;
+  }
+
+  @override
   Future<MyInvitationsResponseModel> getMyInvitations(String? status) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{r'status': status};
@@ -279,15 +418,11 @@ class _TourGuideApiService implements TourGuideApiService {
   }
 
   @override
-  Future<void> acceptInvitation(
-    String invitationId,
-    Map<String, dynamic> request,
-  ) async {
+  Future<void> acceptInvitation(String invitationId) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
     final _headers = <String, dynamic>{};
-    final _data = <String, dynamic>{};
-    _data.addAll(request);
+    const Map<String, dynamic>? _data = null;
     final _options = _setStreamType<void>(Options(
       method: 'POST',
       headers: _headers,
@@ -308,15 +443,11 @@ class _TourGuideApiService implements TourGuideApiService {
   }
 
   @override
-  Future<void> rejectInvitation(
-    String invitationId,
-    Map<String, dynamic> request,
-  ) async {
+  Future<void> rejectInvitation(String invitationId) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
     final _headers = <String, dynamic>{};
-    final _data = <String, dynamic>{};
-    _data.addAll(request);
+    const Map<String, dynamic>? _data = null;
     final _options = _setStreamType<void>(Options(
       method: 'POST',
       headers: _headers,
@@ -325,6 +456,31 @@ class _TourGuideApiService implements TourGuideApiService {
         .compose(
           _dio.options,
           '/TourGuideInvitation/${invitationId}/reject',
+          queryParameters: queryParameters,
+          data: _data,
+        )
+        .copyWith(
+            baseUrl: _combineBaseUrls(
+          _dio.options.baseUrl,
+          baseUrl,
+        )));
+    await _dio.fetch<void>(_options);
+  }
+
+  @override
+  Future<void> completeTour(String operationId) async {
+    final _extra = <String, dynamic>{};
+    final queryParameters = <String, dynamic>{};
+    final _headers = <String, dynamic>{};
+    const Map<String, dynamic>? _data = null;
+    final _options = _setStreamType<void>(Options(
+      method: 'POST',
+      headers: _headers,
+      extra: _extra,
+    )
+        .compose(
+          _dio.options,
+          '/TourGuide/tour/${operationId}/complete',
           queryParameters: queryParameters,
           data: _data,
         )

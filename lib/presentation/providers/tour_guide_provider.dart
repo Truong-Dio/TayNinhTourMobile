@@ -1,7 +1,12 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
+import 'package:dio/dio.dart';
 
 import '../../data/datasources/tour_guide_api_service.dart';
+import '../../data/models/tour_booking_model.dart';
+import '../../data/models/timeline_item_model.dart';
+import '../../data/models/tour_slot_model.dart';
 import '../../domain/entities/active_tour.dart';
 import '../../domain/entities/tour_booking.dart';
 import '../../domain/entities/timeline_item.dart';
@@ -25,6 +30,7 @@ class TourGuideProvider extends ChangeNotifier {
   List<TourInvitation> _tourInvitations = [];
   InvitationStatistics? _invitationStatistics;
   String? _errorMessage;
+  String? _currentTourDetailsId;
   
   // Getters
   bool get isLoading => _isLoading;
@@ -70,36 +76,39 @@ class TourGuideProvider extends ChangeNotifier {
 
   
   /// Get tour bookings for a specific tour operation
-  Future<void> getTourBookings(String operationId) async {
+  Future<List<TourBookingModel>> getTourBookings(String operationId) async {
     try {
       _setLoading(true);
       _clearError();
 
       final response = await _tourGuideApiService.getTourBookings(operationId);
-      _tourBookings = response.map((model) => model.toEntity()).toList();
-      _logger.i('Loaded ${_tourBookings.length} tour bookings');
+      _logger.i('Loaded ${response.length} tour bookings');
+      return response;
     } catch (e) {
       _logger.e('Error loading tour bookings: $e');
       _setError('Có lỗi xảy ra khi tải danh sách khách hàng');
+      return [];
     } finally {
       _setLoading(false);
     }
   }
   
-  /// Get tour timeline for a specific tour details
-  Future<void> getTourTimeline(String tourDetailsId) async {
+  /// Get tour timeline for a specific tour operation
+  Future<List<TimelineItemModel>> getTourTimeline(String operationId) async {
     try {
       _setLoading(true);
       _clearError();
 
-      final response = await _tourGuideApiService.getTourTimeline(tourDetailsId);
+      final response = await _tourGuideApiService.getTourTimeline(operationId);
       _timelineItems = response.map((model) => model.toEntity()).toList();
-      // Sort by sort order
-      _timelineItems.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-      _logger.i('Loaded ${_timelineItems.length} timeline items');
+      _currentTourDetailsId = operationId; // Store current tour details ID
+      _logger.i('Loaded ${response.length} timeline items');
+      notifyListeners();
+      return response;
     } catch (e) {
       _logger.e('Error loading tour timeline: $e');
       _setError('Có lỗi xảy ra khi tải lịch trình tour');
+      return [];
     } finally {
       _setLoading(false);
     }
@@ -111,38 +120,9 @@ class TourGuideProvider extends ChangeNotifier {
       _setLoading(true);
       _clearError();
 
-      final request = CheckInRequest(qrCodeData: qrCodeData, notes: notes);
+      final request = CheckInGuestRequest(qrCodeData: qrCodeData, notes: notes);
       await _tourGuideApiService.checkInGuest(bookingId, request);
-
-      // If no exception thrown, consider it successful
-        // Update local booking state
-        final bookingIndex = _tourBookings.indexWhere((b) => b.id == bookingId);
-        if (bookingIndex != -1) {
-          final updatedBooking = TourBooking(
-            id: _tourBookings[bookingIndex].id,
-            bookingCode: _tourBookings[bookingIndex].bookingCode,
-            contactName: _tourBookings[bookingIndex].contactName,
-            contactPhone: _tourBookings[bookingIndex].contactPhone,
-            contactEmail: _tourBookings[bookingIndex].contactEmail,
-            numberOfGuests: _tourBookings[bookingIndex].numberOfGuests,
-            adultCount: _tourBookings[bookingIndex].adultCount,
-            childCount: _tourBookings[bookingIndex].childCount,
-            totalPrice: _tourBookings[bookingIndex].totalPrice,
-            isCheckedIn: true,
-            checkInTime: DateTime.now(),
-            checkInNotes: notes,
-            qrCodeData: _tourBookings[bookingIndex].qrCodeData,
-            customerName: _tourBookings[bookingIndex].customerName,
-            status: _tourBookings[bookingIndex].status,
-            bookingDate: _tourBookings[bookingIndex].bookingDate,
-          );
-          
-          _tourBookings[bookingIndex] = updatedBooking;
-          notifyListeners();
-        }
-        
-        _logger.i('Guest checked in successfully: $bookingId');
-        return true;
+      return true;
     } catch (e) {
       _logger.e('Error checking in guest: $e');
       _setError('Có lỗi xảy ra khi check-in khách hàng');
@@ -157,31 +137,16 @@ class TourGuideProvider extends ChangeNotifier {
     try {
       _setLoading(true);
       _clearError();
-      
+
       final request = CompleteTimelineRequest(notes: notes);
       await _tourGuideApiService.completeTimelineItem(timelineId, request);
 
-      // If no exception thrown, consider it successful
-        // Update local timeline state
-        final itemIndex = _timelineItems.indexWhere((item) => item.id == timelineId);
-        if (itemIndex != -1) {
-          final updatedItem = TimelineItem(
-            id: _timelineItems[itemIndex].id,
-            checkInTime: _timelineItems[itemIndex].checkInTime,
-            activity: _timelineItems[itemIndex].activity,
-            sortOrder: _timelineItems[itemIndex].sortOrder,
-            isCompleted: true,
-            completedAt: DateTime.now(),
-            completionNotes: notes,
-            specialtyShop: _timelineItems[itemIndex].specialtyShop,
-          );
-          
-          _timelineItems[itemIndex] = updatedItem;
-          notifyListeners();
-        }
-        
-        _logger.i('Timeline item completed successfully: $timelineId');
-        return true;
+      // Reload timeline to update UI with completion status
+      if (_currentTourDetailsId != null) {
+        await getTourTimeline(_currentTourDetailsId!);
+      }
+
+      return true;
     } catch (e) {
       _logger.e('Error completing timeline item: $e');
       _setError('Có lỗi xảy ra khi hoàn thành mục lịch trình');
@@ -190,7 +155,7 @@ class TourGuideProvider extends ChangeNotifier {
       _setLoading(false);
     }
   }
-  
+
   /// Report an incident
   Future<bool> reportIncident({
     required String tourOperationId,
@@ -202,7 +167,7 @@ class TourGuideProvider extends ChangeNotifier {
     try {
       _setLoading(true);
       _clearError();
-      
+
       final request = ReportIncidentRequest(
         tourOperationId: tourOperationId,
         title: title,
@@ -210,10 +175,8 @@ class TourGuideProvider extends ChangeNotifier {
         severity: severity,
         imageUrls: imageUrls,
       );
-      
-      await _tourGuideApiService.reportIncident(request);
 
-      _logger.i('Incident reported successfully');
+      await _tourGuideApiService.reportIncident(request);
       return true;
     } catch (e) {
       _logger.e('Error reporting incident: $e');
@@ -229,16 +192,121 @@ class TourGuideProvider extends ChangeNotifier {
     try {
       _setLoading(true);
       _clearError();
-      
+
       final request = NotifyGuestsRequest(message: message, isUrgent: isUrgent);
       await _tourGuideApiService.notifyGuests(operationId, request);
-
-      _logger.i('Guests notified successfully');
       return true;
     } catch (e) {
       _logger.e('Error notifying guests: $e');
       _setError('Có lỗi xảy ra khi gửi thông báo');
       return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Complete tour
+  Future<bool> completeTour(String operationId) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      await _tourGuideApiService.completeTour(operationId);
+
+      // Refresh active tours list
+      await getMyActiveTours();
+
+      return true;
+    } catch (e) {
+      _logger.e('Error completing tour: $e');
+      _setError('Có lỗi xảy ra khi hoàn thành tour');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Upload incident images
+  Future<List<String>?> uploadIncidentImages(List<File> imageFiles) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      // Convert File to MultipartFile
+      final multipartFiles = <MultipartFile>[];
+      for (final file in imageFiles) {
+        final multipartFile = await MultipartFile.fromFile(
+          file.path,
+          filename: file.path.split('/').last,
+        );
+        multipartFiles.add(multipartFile);
+      }
+
+      final response = await _tourGuideApiService.uploadIncidentImages(multipartFiles);
+      return response;
+    } catch (e) {
+      _logger.e('Error uploading images: $e');
+      _setError('Có lỗi xảy ra khi upload ảnh');
+      return null;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Get tour slots for a tour details
+  Future<List<TourSlotData>> getTourSlots(String tourDetailsId) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      final response = await _tourGuideApiService.getTourSlots(tourDetailsId);
+
+      _logger.i('Tour slots loaded successfully: ${response.data.length} slots');
+
+      // Convert TourSlotDto to TourSlotData
+      return response.data.map((dto) => TourSlotData.fromDto(dto)).toList();
+    } catch (e) {
+      _logger.e('Error getting tour slots: $e');
+      _setError('Có lỗi xảy ra khi lấy danh sách lịch trình');
+      return [];
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Get tour slot details
+  Future<TourSlotDetailsResponse?> getTourSlotDetails(String tourSlotId) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      final response = await _tourGuideApiService.getTourSlotDetails(tourSlotId);
+
+      _logger.i('Tour slot details loaded successfully');
+      return response;
+    } catch (e) {
+      _logger.e('Error getting tour slot details: $e');
+      _setError('Có lỗi xảy ra khi lấy chi tiết lịch trình');
+      return null;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Get timeline for tour details
+  Future<List<TimelineItemData>> getTimeline(String tourDetailsId) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      final response = await _tourGuideApiService.getTimeline(tourDetailsId, true);
+
+      _logger.i('Timeline loaded successfully: ${response.data.items.length} items');
+      return response.data.items;
+    } catch (e) {
+      _logger.e('Error getting timeline: $e');
+      _setError('Có lỗi xảy ra khi lấy lịch trình chi tiết');
+      return [];
     } finally {
       _setLoading(false);
     }
@@ -312,7 +380,7 @@ class TourGuideProvider extends ChangeNotifier {
         'notes': notes,
       };
 
-      await _tourGuideApiService.acceptInvitation(invitationId, request);
+      await _tourGuideApiService.acceptInvitation(invitationId);
 
       // Refresh invitations list
       await getMyInvitations();
@@ -338,7 +406,7 @@ class TourGuideProvider extends ChangeNotifier {
         'notes': notes,
       };
 
-      await _tourGuideApiService.rejectInvitation(invitationId, request);
+      await _tourGuideApiService.rejectInvitation(invitationId);
 
       // Refresh invitations list
       await getMyInvitations();

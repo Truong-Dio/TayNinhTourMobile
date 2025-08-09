@@ -10,6 +10,7 @@ class ActiveTourModel extends ActiveTour {
 
   const ActiveTourModel({
     required super.id,
+    required super.tourDetailsId,
     required super.title,
     super.description,
     required super.startDate,
@@ -30,6 +31,7 @@ class ActiveTourModel extends ActiveTour {
   ActiveTour toEntity() {
     return ActiveTour(
       id: id,
+      tourDetailsId: tourDetailsId,
       title: title,
       description: description,
       startDate: startDate,

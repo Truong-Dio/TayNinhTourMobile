@@ -15,6 +15,7 @@ import '../tour_progress/tour_progress_page.dart';
 import '../incident/incident_report_page.dart';
 import '../notification/guest_notification_page.dart';
 import '../invitations/tour_invitations_page.dart';
+import '../accepted_tours/accepted_tours_page.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/tour_invitation.dart';
 
@@ -487,19 +488,37 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
           ),
           const SizedBox(height: 16),
+
+          // Main action - Các Tour đã nhận
+          Container(
+            width: double.infinity,
+            child: _buildMainActionButton(
+              icon: Icons.tour,
+              label: 'Các Tour đã nhận',
+              subtitle: 'Xem và quản lý tour đã được phân công',
+              color: Colors.indigo,
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const AcceptedToursPage(),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+
           Row(
             children: [
               Expanded(
                 child: _buildActionButton(
                   icon: Icons.qr_code_scanner,
                   label: 'Check-in',
-                  subtitle: 'Không có tour',
+                  subtitle: 'Quét QR khách',
                   onTap: () {
-                    // Show message if no active tours
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Không có tour nào để check-in'),
-                        backgroundColor: Colors.orange,
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const CheckInPage(),
                       ),
                     );
                   },
@@ -510,12 +529,11 @@ class _DashboardPageState extends State<DashboardPage> {
                 child: _buildActionButton(
                   icon: Icons.timeline,
                   label: 'Timeline',
-                  subtitle: 'Không có tour',
+                  subtitle: 'Tiến độ tour',
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Không có tour nào để xem timeline'),
-                        backgroundColor: Colors.orange,
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const TourProgressPage(tourId: ''),
                       ),
                     );
                   },
@@ -543,13 +561,13 @@ class _DashboardPageState extends State<DashboardPage> {
               const SizedBox(width: 12),
               Expanded(
                 child: _buildActionButton(
-                  icon: Icons.trending_up,
-                  label: 'Tiến độ',
-                  subtitle: 'Không có tour',
+                  icon: Icons.notifications,
+                  label: 'Thông báo',
+                  subtitle: 'Gửi cho khách',
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) => const TourProgressPage(tourId: ''),
+                        builder: (context) => const GuestNotificationPage(),
                       ),
                     );
                   },
@@ -558,6 +576,77 @@ class _DashboardPageState extends State<DashboardPage> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMainActionButton({
+    required IconData icon,
+    required String label,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [color, color.withOpacity(0.8)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: Colors.white, size: 28),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: Colors.white,
+              size: 20,
+            ),
+          ],
+        ),
       ),
     );
   }

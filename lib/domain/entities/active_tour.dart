@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 /// Active Tour entity
 class ActiveTour extends Equatable {
   final String id;
+  final String tourDetailsId;
   final String title;
   final String? description;
   final DateTime startDate;
@@ -14,9 +15,10 @@ class ActiveTour extends Equatable {
   final int bookingsCount;
   final String status;
   final TourTemplate tourTemplate;
-  
+
   const ActiveTour({
     required this.id,
+    required this.tourDetailsId,
     required this.title,
     this.description,
     required this.startDate,
@@ -33,6 +35,7 @@ class ActiveTour extends Equatable {
   @override
   List<Object?> get props => [
     id,
+    tourDetailsId,
     title,
     description,
     startDate,

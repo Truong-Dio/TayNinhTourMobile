@@ -101,15 +101,18 @@ class _IncidentReportPageState extends State<IncidentReportPage> {
     });
 
     try {
-      // TODO: Upload images first and get URLs
+      final tourGuideProvider = context.read<TourGuideProvider>();
+
+      // Upload images first if any
       List<String>? imageUrls;
       if (_selectedImages.isNotEmpty) {
-        // For now, we'll use placeholder URLs
-        // In real implementation, upload images to server first
-        imageUrls = _selectedImages.map((file) => 'placeholder_url_${file.path}').toList();
+        imageUrls = await tourGuideProvider.uploadIncidentImages(_selectedImages);
+        if (imageUrls == null) {
+          _showMessage('Không thể upload ảnh. Vui lòng thử lại.', isError: true);
+          return;
+        }
       }
 
-      final tourGuideProvider = context.read<TourGuideProvider>();
       final success = await tourGuideProvider.reportIncident(
         tourOperationId: _selectedTour!.id,
         title: _titleController.text.trim(),

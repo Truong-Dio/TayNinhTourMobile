@@ -9,6 +9,7 @@ part of 'active_tour_model.dart';
 ActiveTourModel _$ActiveTourModelFromJson(Map<String, dynamic> json) =>
     ActiveTourModel(
       id: json['id'] as String,
+      tourDetailsId: json['tourDetailsId'] as String,
       title: json['title'] as String,
       description: json['description'] as String?,
       startDate: DateTime.parse(json['startDate'] as String),
@@ -26,6 +27,7 @@ ActiveTourModel _$ActiveTourModelFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$ActiveTourModelToJson(ActiveTourModel instance) =>
     <String, dynamic>{
       'id': instance.id,
+      'tourDetailsId': instance.tourDetailsId,
       'title': instance.title,
       'description': instance.description,
       'startDate': instance.startDate.toIso8601String(),

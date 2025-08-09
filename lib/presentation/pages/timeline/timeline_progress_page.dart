@@ -537,16 +537,28 @@ class _TimelineProgressPageState extends State<TimelineProgressPage> {
             child: const Text('Hủy'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.of(context).pop();
-              // TODO: Update tour status to completed
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Tour đã hoàn thành thành công!'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-              Navigator.of(context).pop(); // Go back to previous screen
+
+              final tourGuideProvider = context.read<TourGuideProvider>();
+              final success = await tourGuideProvider.completeTour(widget.tourId);
+
+              if (success) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Tour đã hoàn thành thành công!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+                Navigator.of(context).pop(); // Go back to previous screen
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(tourGuideProvider.errorMessage ?? 'Không thể hoàn thành tour'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             },
             child: const Text('Hoàn thành'),
           ),

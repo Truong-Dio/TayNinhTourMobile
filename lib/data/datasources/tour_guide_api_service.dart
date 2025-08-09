@@ -5,6 +5,7 @@ import '../models/active_tour_model.dart';
 import '../models/tour_booking_model.dart';
 import '../models/timeline_item_model.dart';
 import '../models/tour_invitation_model.dart';
+import '../models/tour_slot_model.dart';
 import '../../core/constants/api_constants.dart';
 
 part 'tour_guide_api_service.g.dart';
@@ -28,12 +29,12 @@ abstract class TourGuideApiService {
   Future<List<TimelineItemModel>> getTourTimeline(
     @Path('operationId') String operationId,
   );
-  
+
   /// Check-in a guest
   @POST('/TourGuide/checkin/{bookingId}')
   Future<void> checkInGuest(
     @Path('bookingId') String bookingId,
-    @Body() CheckInRequest request,
+    @Body() CheckInGuestRequest request,
   );
 
   /// Complete a timeline item
@@ -44,7 +45,7 @@ abstract class TourGuideApiService {
   );
 
   /// Report an incident
-  @POST(ApiConstants.reportIncident)
+  @POST('/TourGuide/incident/report')
   Future<void> reportIncident(
     @Body() ReportIncidentRequest request,
   );
@@ -56,8 +57,34 @@ abstract class TourGuideApiService {
     @Body() NotifyGuestsRequest request,
   );
 
+  /// Upload incident images
+  @POST('/TourGuide/incident/upload-images')
+  @MultiPart()
+  Future<List<String>> uploadIncidentImages(
+    @Part() List<MultipartFile> files,
+  );
+
+  /// Get tour slots by tour details ID
+  @GET('/TourSlot')
+  Future<TourSlotsResponse> getTourSlots(
+    @Query('tourDetailsId') String tourDetailsId,
+  );
+
+  /// Get tour slot details with bookings
+  @GET('/TourSlot/{tourSlotId}/tour-details-and-bookings')
+  Future<TourSlotDetailsResponse> getTourSlotDetails(
+    @Path('tourSlotId') String tourSlotId,
+  );
+
+  /// Get timeline for tour details
+  @GET('/TourDetails/{tourDetailsId}/timeline')
+  Future<TimelineResponse> getTimeline(
+    @Path('tourDetailsId') String tourDetailsId,
+    @Query('includeShopInfo') bool includeShopInfo,
+  );
+
   /// Get my tour invitations
-  @GET(ApiConstants.myInvitations)
+  @GET('/TourGuideInvitation/my-invitations')
   Future<MyInvitationsResponseModel> getMyInvitations(
     @Query('status') String? status,
   );
@@ -66,14 +93,18 @@ abstract class TourGuideApiService {
   @POST('/TourGuideInvitation/{invitationId}/accept')
   Future<void> acceptInvitation(
     @Path('invitationId') String invitationId,
-    @Body() Map<String, dynamic> request,
   );
 
   /// Reject tour invitation
   @POST('/TourGuideInvitation/{invitationId}/reject')
   Future<void> rejectInvitation(
     @Path('invitationId') String invitationId,
-    @Body() Map<String, dynamic> request,
+  );
+
+  /// Complete tour
+  @POST('/TourGuide/tour/{operationId}/complete')
+  Future<void> completeTour(
+    @Path('operationId') String operationId,
   );
 
 
@@ -148,14 +179,430 @@ class ReportIncidentRequest {
 class NotifyGuestsRequest {
   final String message;
   final bool isUrgent;
-  
+
   NotifyGuestsRequest({
     required this.message,
     this.isUrgent = false,
   });
-  
+
   Map<String, dynamic> toJson() => {
     'message': message,
     'isUrgent': isUrgent,
   };
 }
+
+/// Upload images response
+class UploadImagesResponse {
+  final bool success;
+  final String message;
+  final List<String> data;
+
+  UploadImagesResponse({
+    required this.success,
+    required this.message,
+    required this.data,
+  });
+
+  factory UploadImagesResponse.fromJson(Map<String, dynamic> json) => UploadImagesResponse(
+    success: json['success'] ?? false,
+    message: json['message'] ?? '',
+    data: List<String>.from(json['data'] ?? []),
+  );
+}
+
+
+
+
+
+/// Tour slot details response
+class TourSlotDetailsResponse {
+  final bool success;
+  final String message;
+  final TourSlotWithBookingsData data;
+
+  TourSlotDetailsResponse({
+    required this.success,
+    required this.message,
+    required this.data,
+  });
+
+  factory TourSlotDetailsResponse.fromJson(Map<String, dynamic> json) {
+    try {
+      return TourSlotDetailsResponse(
+        success: json['success'] ?? false,
+        message: json['message'] ?? '',
+        data: TourSlotWithBookingsData.fromJson(json['data'] ?? {}),
+      );
+    } catch (e) {
+      print('Error parsing TourSlotDetailsResponse: $e');
+      print('JSON data: $json');
+      rethrow;
+    }
+  }
+}
+
+/// Tour slot with bookings data (matches backend TourSlotWithBookingsDto)
+class TourSlotWithBookingsData {
+  final TourSlotDetailsInfo slot;
+  final TourDetailsInfo? tourDetails;
+  final List<BookedUserInfo> bookedUsers;
+  final BookingStatistics statistics;
+
+  TourSlotWithBookingsData({
+    required this.slot,
+    this.tourDetails,
+    required this.bookedUsers,
+    required this.statistics,
+  });
+
+  factory TourSlotWithBookingsData.fromJson(Map<String, dynamic> json) {
+    try {
+      return TourSlotWithBookingsData(
+        slot: TourSlotDetailsInfo.fromJson(json['slot'] ?? {}),
+        tourDetails: json['tourDetails'] != null ? TourDetailsInfo.fromJson(json['tourDetails']) : null,
+        bookedUsers: (json['bookedUsers'] as List?)?.map((e) => BookedUserInfo.fromJson(e)).toList() ?? [],
+        statistics: BookingStatistics.fromJson(json['statistics'] ?? {}),
+      );
+    } catch (e) {
+      print('Error parsing TourSlotWithBookingsData: $e');
+      print('JSON data: $json');
+      rethrow;
+    }
+  }
+}
+
+/// Tour slot details info
+class TourSlotDetailsInfo {
+  final String id;
+  final String tourDate;
+  final String status;
+  final int maxGuests;
+  final int currentBookings;
+  final bool isActive;
+
+  TourSlotDetailsInfo({
+    required this.id,
+    required this.tourDate,
+    required this.status,
+    required this.maxGuests,
+    required this.currentBookings,
+    required this.isActive,
+  });
+
+  factory TourSlotDetailsInfo.fromJson(Map<String, dynamic> json) => TourSlotDetailsInfo(
+    id: json['id'] ?? '',
+    tourDate: json['tourDate'] ?? '',
+    status: json['status'] ?? '',
+    maxGuests: json['maxGuests'] ?? 0,
+    currentBookings: json['currentBookings'] ?? 0,
+    isActive: json['isActive'] ?? false,
+  );
+}
+
+/// Tour details info
+class TourDetailsInfo {
+  final String id;
+  final String title;
+  final String description;
+  final List<String> imageUrls;
+  final List<String> skillsRequired;
+  final String status;
+  final String statusName;
+  final String createdAt;
+
+  TourDetailsInfo({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.imageUrls,
+    required this.skillsRequired,
+    required this.status,
+    required this.statusName,
+    required this.createdAt,
+  });
+
+  factory TourDetailsInfo.fromJson(Map<String, dynamic> json) => TourDetailsInfo(
+    id: json['id'] ?? '',
+    title: json['title'] ?? '',
+    description: json['description'] ?? '',
+    imageUrls: List<String>.from(json['imageUrls'] ?? []),
+    skillsRequired: List<String>.from(json['skillsRequired'] ?? []),
+    status: json['status'] ?? '',
+    statusName: json['statusName'] ?? '',
+    createdAt: json['createdAt'] ?? '',
+  );
+}
+
+/// Booked user info
+class BookedUserInfo {
+  final String id;
+  final String contactName;
+  final String contactPhone;
+  final String contactEmail;
+  final int numberOfGuests;
+  final String status;
+  final bool isCheckedIn;
+  final String? checkInTime;
+  final String? qrCodeData;
+
+  BookedUserInfo({
+    required this.id,
+    required this.contactName,
+    required this.contactPhone,
+    required this.contactEmail,
+    required this.numberOfGuests,
+    required this.status,
+    required this.isCheckedIn,
+    this.checkInTime,
+    this.qrCodeData,
+  });
+
+  factory BookedUserInfo.fromJson(Map<String, dynamic> json) => BookedUserInfo(
+    id: json['id'] ?? '',
+    contactName: json['contactName'] ?? '',
+    contactPhone: json['contactPhone'] ?? '',
+    contactEmail: json['contactEmail'] ?? '',
+    numberOfGuests: json['numberOfGuests'] ?? 0,
+    status: json['status'] ?? '',
+    isCheckedIn: json['isCheckedIn'] ?? false,
+    checkInTime: json['checkInTime'],
+    qrCodeData: json['qrCodeData'],
+  );
+}
+
+/// Booking statistics
+class BookingStatistics {
+  final int totalBookings;
+  final int totalGuests;
+  final int confirmedBookings;
+  final int pendingBookings;
+  final int cancelledBookings;
+  final double totalRevenue;
+  final double confirmedRevenue;
+  final double occupancyRate;
+
+  BookingStatistics({
+    required this.totalBookings,
+    required this.totalGuests,
+    required this.confirmedBookings,
+    required this.pendingBookings,
+    required this.cancelledBookings,
+    required this.totalRevenue,
+    required this.confirmedRevenue,
+    required this.occupancyRate,
+  });
+
+  factory BookingStatistics.fromJson(Map<String, dynamic> json) => BookingStatistics(
+    totalBookings: json['totalBookings'] ?? 0,
+    totalGuests: json['totalGuests'] ?? 0,
+    confirmedBookings: json['confirmedBookings'] ?? 0,
+    pendingBookings: json['pendingBookings'] ?? 0,
+    cancelledBookings: json['cancelledBookings'] ?? 0,
+    totalRevenue: (json['totalRevenue'] ?? 0).toDouble(),
+    confirmedRevenue: (json['confirmedRevenue'] ?? 0).toDouble(),
+    occupancyRate: (json['occupancyRate'] ?? 0).toDouble(),
+  );
+}
+
+/// Tour booking data
+class TourBookingData {
+  final String id;
+  final String contactName;
+  final String contactPhone;
+  final String contactEmail;
+  final int numberOfGuests;
+  final String status;
+  final bool isCheckedIn;
+  final String? checkInTime;
+  final String? qrCodeData;
+
+  TourBookingData({
+    required this.id,
+    required this.contactName,
+    required this.contactPhone,
+    required this.contactEmail,
+    required this.numberOfGuests,
+    required this.status,
+    required this.isCheckedIn,
+    this.checkInTime,
+    this.qrCodeData,
+  });
+
+  factory TourBookingData.fromJson(Map<String, dynamic> json) => TourBookingData(
+    id: json['id'] ?? '',
+    contactName: json['contactName'] ?? '',
+    contactPhone: json['contactPhone'] ?? '',
+    contactEmail: json['contactEmail'] ?? '',
+    numberOfGuests: json['numberOfGuests'] ?? 0,
+    status: json['status'] ?? '',
+    isCheckedIn: json['isCheckedIn'] ?? false,
+    checkInTime: json['checkInTime'],
+    qrCodeData: json['qrCodeData'],
+  );
+}
+
+/// Timeline response
+class TimelineResponse {
+  final int statusCode;
+  final String message;
+  final bool success;
+  final TimelineData data;
+
+  TimelineResponse({
+    required this.statusCode,
+    required this.message,
+    required this.success,
+    required this.data,
+  });
+
+  factory TimelineResponse.fromJson(Map<String, dynamic> json) => TimelineResponse(
+    statusCode: json['statusCode'] ?? 200,
+    message: json['message'] ?? '',
+    success: json['success'] ?? false,
+    data: TimelineData.fromJson(json['data'] ?? {}),
+  );
+}
+
+/// Timeline data
+class TimelineData {
+  final String tourTemplateId;
+  final String tourTemplateTitle;
+  final List<TimelineItemData> items;
+  final int totalItems;
+  final String startLocation;
+  final String endLocation;
+  final String createdAt;
+  final String? updatedAt;
+
+  TimelineData({
+    required this.tourTemplateId,
+    required this.tourTemplateTitle,
+    required this.items,
+    required this.totalItems,
+    required this.startLocation,
+    required this.endLocation,
+    required this.createdAt,
+    this.updatedAt,
+  });
+
+  factory TimelineData.fromJson(Map<String, dynamic> json) => TimelineData(
+    tourTemplateId: json['tourTemplateId'] ?? '',
+    tourTemplateTitle: json['tourTemplateTitle'] ?? '',
+    items: (json['items'] as List?)?.map((e) => TimelineItemData.fromJson(e)).toList() ?? [],
+    totalItems: json['totalItems'] ?? 0,
+    startLocation: json['startLocation'] ?? '',
+    endLocation: json['endLocation'] ?? '',
+    createdAt: json['createdAt'] ?? '',
+    updatedAt: json['updatedAt'],
+  );
+}
+
+/// Timeline item data
+class TimelineItemData {
+  final String id;
+  final String tourDetailsId;
+  final String checkInTime;
+  final String activity;
+  final String? specialtyShopId;
+  final int sortOrder;
+  final SpecialtyShopData? specialtyShop;
+  final String createdAt;
+  final String? updatedAt;
+
+  TimelineItemData({
+    required this.id,
+    required this.tourDetailsId,
+    required this.checkInTime,
+    required this.activity,
+    this.specialtyShopId,
+    required this.sortOrder,
+    this.specialtyShop,
+    required this.createdAt,
+    this.updatedAt,
+  });
+
+  factory TimelineItemData.fromJson(Map<String, dynamic> json) => TimelineItemData(
+    id: json['id'] ?? '',
+    tourDetailsId: json['tourDetailsId'] ?? '',
+    checkInTime: json['checkInTime'] ?? '',
+    activity: json['activity'] ?? '',
+    specialtyShopId: json['specialtyShopId'],
+    sortOrder: json['sortOrder'] ?? 0,
+    specialtyShop: json['specialtyShop'] != null ? SpecialtyShopData.fromJson(json['specialtyShop']) : null,
+    createdAt: json['createdAt'] ?? '',
+    updatedAt: json['updatedAt'],
+  );
+
+  // For compatibility with existing code
+  bool get isCompleted => false; // Timeline items don't have completion status in this API
+  String? get completedAt => null;
+  String? get completionNotes => null;
+  String? get location => specialtyShop?.location;
+}
+
+/// Specialty shop data
+class SpecialtyShopData {
+  final String id;
+  final String shopName;
+  final String shopType;
+  final String location;
+  final String? description;
+  final bool isShopActive;
+
+  SpecialtyShopData({
+    required this.id,
+    required this.shopName,
+    required this.shopType,
+    required this.location,
+    this.description,
+    required this.isShopActive,
+  });
+
+  factory SpecialtyShopData.fromJson(Map<String, dynamic> json) => SpecialtyShopData(
+    id: json['id'] ?? '',
+    shopName: json['shopName'] ?? '',
+    shopType: json['shopType'] ?? '',
+    location: json['location'] ?? '',
+    description: json['description'],
+    isShopActive: json['isShopActive'] ?? false,
+  );
+}
+
+/// API Response wrapper
+class ApiResponse<T> {
+  final int statusCode;
+  final String message;
+  final T data;
+  final bool success;
+
+  ApiResponse({
+    required this.statusCode,
+    required this.message,
+    required this.data,
+    required this.success,
+  });
+
+  factory ApiResponse.fromJson(Map<String, dynamic> json, T Function(dynamic) fromJsonT) => ApiResponse(
+    statusCode: json['statusCode'] ?? 200,
+    message: json['message'] ?? '',
+    data: fromJsonT(json['data']),
+    success: json['success'] ?? false,
+  );
+}
+
+
+
+/// Request models
+class CheckInGuestRequest {
+  final String? qrCodeData;
+  final String? notes;
+
+  CheckInGuestRequest({this.qrCodeData, this.notes});
+
+  Map<String, dynamic> toJson() => {
+    'qrCodeData': qrCodeData,
+    'notes': notes,
+  };
+}
+
+

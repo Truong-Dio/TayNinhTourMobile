@@ -19,7 +19,7 @@ class ApiConstants {
   static const String reportIncident = '/TourGuide/incident/report';
   static const String notifyGuests = '/TourGuide/tour/{operationId}/notify-guests';
 
-  // Tour Guide Invitation endpoints
+  // Tour Guide Invitation endpoints - FIXED: Correct controller name
   static const String myInvitations = '/TourGuideInvitation/my-invitations';
   static const String acceptInvitation = '/TourGuideInvitation/{invitationId}/accept';
   static const String rejectInvitation = '/TourGuideInvitation/{invitationId}/reject';
