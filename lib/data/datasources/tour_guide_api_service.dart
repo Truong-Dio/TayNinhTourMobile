@@ -24,10 +24,18 @@ abstract class TourGuideApiService {
     @Path('operationId') String operationId,
   );
 
-  /// Get tour timeline for a specific tour operation
+  /// Get tour timeline for a specific tour operation (LEGACY - for backward compatibility)
   @GET('/TourGuide/tour/{operationId}/timeline')
   Future<List<TimelineItemModel>> getTourTimeline(
     @Path('operationId') String operationId,
+  );
+
+  /// [NEW] Get timeline with progress for a specific tour slot
+  @GET('/TourGuide/tour-slot/{tourSlotId}/timeline')
+  Future<TimelineProgressResponse> getTourSlotTimeline(
+    @Path('tourSlotId') String tourSlotId,
+    @Query('includeInactive') bool? includeInactive,
+    @Query('includeShopInfo') bool? includeShopInfo,
   );
 
   /// Check-in a guest
@@ -37,11 +45,45 @@ abstract class TourGuideApiService {
     @Body() CheckInGuestRequest request,
   );
 
-  /// Complete a timeline item
+  /// Complete a timeline item (LEGACY - for backward compatibility)
   @POST('/TourGuide/timeline/{timelineId}/complete')
   Future<void> completeTimelineItem(
     @Path('timelineId') String timelineId,
     @Body() CompleteTimelineRequest request,
+  );
+
+  /// [NEW] Complete timeline item for a specific tour slot
+  @POST('/TourGuide/tour-slot/{tourSlotId}/timeline/{timelineItemId}/complete')
+  Future<CompleteTimelineResponse> completeTimelineItemForSlot(
+    @Path('tourSlotId') String tourSlotId,
+    @Path('timelineItemId') String timelineItemId,
+    @Body() CompleteTimelineRequest request,
+  );
+
+  /// [NEW] Bulk complete multiple timeline items
+  @POST('/TourGuide/timeline/bulk-complete')
+  Future<BulkTimelineResponse> bulkCompleteTimelineItems(
+    @Body() BulkCompleteTimelineRequest request,
+  );
+
+  /// [NEW] Reset timeline item completion
+  @POST('/TourGuide/tour-slot/{tourSlotId}/timeline/{timelineItemId}/reset')
+  Future<CompleteTimelineResponse> resetTimelineItem(
+    @Path('tourSlotId') String tourSlotId,
+    @Path('timelineItemId') String timelineItemId,
+    @Body() ResetTimelineRequest request,
+  );
+
+  /// [NEW] Get progress summary for tour slot
+  @GET('/TourGuide/tour-slot/{tourSlotId}/progress-summary')
+  Future<TimelineProgressSummaryDto> getProgressSummary(
+    @Path('tourSlotId') String tourSlotId,
+  );
+
+  /// [NEW] Get timeline statistics
+  @GET('/TourGuide/tour-slot/{tourSlotId}/statistics')
+  Future<TimelineStatisticsResponse> getTimelineStatistics(
+    @Path('tourSlotId') String tourSlotId,
   );
 
   /// Report an incident
