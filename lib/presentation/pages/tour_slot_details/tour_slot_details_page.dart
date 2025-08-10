@@ -416,7 +416,7 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const CheckInPage(),
+                          builder: (context) => CheckInPage(tourSlotId: widget.slotId),
                         ),
                       );
                     },

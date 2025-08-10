@@ -6,7 +6,7 @@ import '../../../domain/entities/active_tour.dart';
 class GuestListWidget extends StatefulWidget {
   final List<TourBooking> bookings;
   final ActiveTour? selectedTour;
-  final Function(TourBooking) onCheckIn;
+  final Function(TourBooking booking, {bool overrideTime, String overrideReason}) onCheckIn;
 
   const GuestListWidget({
     super.key,
@@ -44,7 +44,8 @@ class _GuestListWidgetState extends State<GuestListWidget> {
       if (a.isCheckedIn != b.isCheckedIn) {
         return a.isCheckedIn ? 1 : -1;
       }
-      return a.bookingDate.compareTo(b.bookingDate);
+      // Sort by booking code since bookingDate is not available
+      return a.bookingCode.compareTo(b.bookingCode);
     });
 
     return filtered;
@@ -260,7 +261,7 @@ class _GuestListWidgetState extends State<GuestListWidget> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Mã booking: ${booking.bookingCode}'),
-            Text('Số khách: ${booking.numberOfGuests} (${booking.adultCount} NL, ${booking.childCount} TE)'),
+            Text('Số khách: ${booking.numberOfGuests}'),
             if (booking.contactPhone != null)
               Text('SĐT: ${booking.contactPhone}'),
             if (isCheckedIn && booking.checkInTime != null)
@@ -292,34 +293,113 @@ class _GuestListWidgetState extends State<GuestListWidget> {
   }
 
   void _showCheckInDialog(TourBooking booking) {
+    bool overrideTime = false;
+    String overrideReason = '';
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Xác nhận Check-in'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Khách hàng: ${booking.customerName ?? booking.contactName}'),
-            Text('Mã booking: ${booking.bookingCode}'),
-            Text('Số khách: ${booking.numberOfGuests}'),
-            const SizedBox(height: 16),
-            const Text('Bạn có chắc chắn muốn check-in cho khách hàng này?'),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Xác nhận Check-in'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Khách hàng: ${booking.customerName ?? booking.contactName}'),
+              Text('Mã booking: ${booking.bookingCode}'),
+              Text('Số khách: ${booking.numberOfGuests}'),
+              const SizedBox(height: 16),
+
+              // Override time option
+              Row(
+                children: [
+                  Checkbox(
+                    value: overrideTime,
+                    onChanged: (value) {
+                      setState(() {
+                        overrideTime = value ?? false;
+                        if (!overrideTime) {
+                          overrideReason = '';
+                        }
+                      });
+                    },
+                  ),
+                  const Expanded(
+                    child: Text(
+                      'Check-in sớm (bỏ qua kiểm tra thời gian)',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+
+              // Override reason input
+              if (overrideTime) ...[
+                const SizedBox(height: 8),
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Lý do check-in sớm *',
+                    hintText: 'Nhập lý do tại sao cần check-in sớm...',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  maxLines: 2,
+                  onChanged: (value) {
+                    overrideReason = value;
+                  },
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[50],
+                    border: Border.all(color: Colors.orange[200]!),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning, color: Colors.orange[700], size: 16),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Check-in sớm sẽ được ghi log đặc biệt',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 16),
+              const Text('Bạn có chắc chắn muốn check-in cho khách hàng này?'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                // Validate override reason if override is enabled
+                if (overrideTime && overrideReason.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Vui lòng nhập lý do check-in sớm'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                Navigator.of(context).pop();
+                widget.onCheckIn(booking, overrideTime: overrideTime, overrideReason: overrideReason);
+              },
+              child: Text(overrideTime ? 'Check-in sớm' : 'Check-in'),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Hủy'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              widget.onCheckIn(booking);
-            },
-            child: const Text('Check-in'),
-          ),
-        ],
       ),
     );
   }

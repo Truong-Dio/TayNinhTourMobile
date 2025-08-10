@@ -7,11 +7,14 @@ import '../../widgets/checkin/tour_selection_widget.dart';
 import '../../widgets/checkin/guest_list_widget.dart';
 import '../timeline/timeline_page.dart';
 import '../../../domain/entities/active_tour.dart';
+import '../../../data/models/tour_guide_slot_models.dart';
+import '../../../data/models/tour_booking_model.dart';
 
 class CheckInPage extends StatefulWidget {
-  final String? tourId;
+  final String? tourId; // [LEGACY] For backward compatibility
+  final String? tourSlotId; // [NEW] For direct slot selection
 
-  const CheckInPage({super.key, this.tourId});
+  const CheckInPage({super.key, this.tourId, this.tourSlotId});
 
   @override
   State<CheckInPage> createState() => _CheckInPageState();
@@ -20,14 +23,16 @@ class CheckInPage extends StatefulWidget {
 class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin {
   late TabController _tabController;
   ActiveTour? _selectedTour;
+  TourGuideSlotModel? _selectedTourSlot;
   bool _isLoadingBookings = false;
+  bool _isLoadingSlots = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadActiveTours();
+      _loadTourSlots();
     });
   }
 
@@ -37,6 +42,50 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
     super.dispose();
   }
 
+  /// [NEW] Load tour slots for current tour guide
+  Future<void> _loadTourSlots() async {
+    setState(() {
+      _isLoadingSlots = true;
+    });
+
+    final tourGuideProvider = context.read<TourGuideProvider>();
+    await tourGuideProvider.getMyTourSlots();
+
+    // ✅ NEW: Select specific slot if tourSlotId provided
+    if (widget.tourSlotId != null && tourGuideProvider.tourSlots.isNotEmpty) {
+      final targetSlot = tourGuideProvider.tourSlots
+          .where((slot) => slot.id == widget.tourSlotId)
+          .firstOrNull;
+
+      if (targetSlot != null) {
+        _selectTourSlot(targetSlot);
+      } else {
+        // Fallback if specific slot not found
+        _selectFirstAvailableSlot(tourGuideProvider);
+      }
+    } else if (tourGuideProvider.tourSlots.isNotEmpty) {
+      // Auto-select logic when no specific slot requested
+      _selectFirstAvailableSlot(tourGuideProvider);
+    }
+
+    setState(() {
+      _isLoadingSlots = false;
+    });
+  }
+
+  /// Helper method to select first available slot
+  void _selectFirstAvailableSlot(TourGuideProvider tourGuideProvider) {
+    // ✅ UPDATED: Don't auto-select, let user choose manually
+    // This prevents confusion when user wants to check a specific slot
+
+    // Only auto-select if there's exactly one slot
+    if (tourGuideProvider.tourSlots.length == 1) {
+      _selectTourSlot(tourGuideProvider.tourSlots.first);
+    }
+    // For multiple slots, let user choose manually from the list
+  }
+
+  /// [LEGACY] Load active tours - kept for backward compatibility
   Future<void> _loadActiveTours() async {
     final tourGuideProvider = context.read<TourGuideProvider>();
     await tourGuideProvider.getMyActiveTours();
@@ -57,6 +106,22 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
     }
   }
 
+  /// [NEW] Select tour slot and load its bookings
+  Future<void> _selectTourSlot(TourGuideSlotModel tourSlot) async {
+    setState(() {
+      _selectedTourSlot = tourSlot;
+      _isLoadingBookings = true;
+    });
+
+    final tourGuideProvider = context.read<TourGuideProvider>();
+    await tourGuideProvider.getTourSlotBookings(tourSlot.id);
+
+    setState(() {
+      _isLoadingBookings = false;
+    });
+  }
+
+  /// [LEGACY] Select tour - kept for backward compatibility
   Future<void> _selectTour(ActiveTour tour) async {
     setState(() {
       _selectedTour = tour;
@@ -71,37 +136,30 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
     });
   }
 
+  /// [UPDATED] Handle QR code scanning with TourSlot validation
   Future<void> _handleQRScanned(String qrData) async {
-    if (_selectedTour == null) {
-      _showMessage('Vui lòng chọn tour trước khi quét QR', isError: true);
+    if (_selectedTourSlot == null) {
+      _showMessage('Vui lòng chọn tour slot trước khi quét QR', isError: true);
       return;
     }
 
     final tourGuideProvider = context.read<TourGuideProvider>();
 
-    // Find booking by QR code
-    final booking = tourGuideProvider.tourBookings.firstWhere(
-      (b) => b.qrCodeData == qrData,
-      orElse: () => throw Exception('Booking not found'),
-    );
+    // ✅ NEW: Find booking by QR code in current slot
+    final booking = tourGuideProvider.findBookingByQRCode(qrData);
+
+    if (booking == null) {
+      _showMessage('Không tìm thấy booking với QR code này trong slot hiện tại', isError: true);
+      return;
+    }
 
     if (booking.isCheckedIn) {
       _showMessage('Khách hàng đã được check-in trước đó', isError: true);
       return;
     }
 
-    // Perform check-in
-    final success = await tourGuideProvider.checkInGuest(
-      booking.id,
-      qrCodeData: qrData,
-      notes: 'Check-in bằng QR code',
-    );
-
-    if (success) {
-      _showMessage('Check-in thành công cho ${booking.customerName ?? booking.contactName}');
-    } else {
-      _showMessage(tourGuideProvider.errorMessage ?? 'Check-in thất bại', isError: true);
-    }
+    // Show check-in dialog with QR data
+    _showQRCheckInDialog(booking, qrData);
   }
 
   void _showMessage(String message, {bool isError = false}) {
@@ -126,24 +184,24 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
       body: Consumer<TourGuideProvider>(
         builder: (context, tourGuideProvider, child) {
           return LoadingOverlay(
-            isLoading: tourGuideProvider.isLoading || _isLoadingBookings,
+            isLoading: tourGuideProvider.isLoading || _isLoadingBookings || _isLoadingSlots,
             child: Column(
               children: [
-                // Tour Header
-                if (_selectedTour != null) _buildTourHeader(_selectedTour!),
+                // Tour Slot Header
+                if (_selectedTourSlot != null) _buildTourSlotHeader(_selectedTourSlot!),
 
                 // Search Bar
-                if (_selectedTour != null) _buildSearchBar(),
+                if (_selectedTourSlot != null) _buildSearchBar(),
 
                 // Guest List
                 Expanded(
-                  child: _selectedTour == null
-                      ? _buildTourSelectionView(tourGuideProvider)
+                  child: _selectedTourSlot == null
+                      ? _buildTourSlotSelectionView(tourGuideProvider)
                       : _buildGuestListView(tourGuideProvider),
                 ),
 
                 // Bottom Action Bar
-                if (_selectedTour != null) _buildBottomActionBar(tourGuideProvider),
+                if (_selectedTourSlot != null) _buildBottomActionBar(tourGuideProvider),
               ],
             ),
           );
@@ -152,6 +210,88 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
     );
   }
 
+  /// [NEW] Build tour slot header
+  Widget _buildTourSlotHeader(TourGuideSlotModel tourSlot) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).primaryColor.withOpacity(0.1),
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).dividerColor,
+            width: 1,
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tourSlot.tourDetails.title,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Ngày: ${tourSlot.tourDate}',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    Text(
+                      'Trạng thái: ${tourSlot.status}',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: () => _showTourSlotSelectionDialog(),
+                icon: const Icon(Icons.swap_horiz),
+                tooltip: 'Chọn slot khác',
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _buildStatCard(
+                'Tổng booking',
+                '${tourSlot.bookingStats.totalBookings}',
+                Icons.people,
+                Colors.blue,
+              ),
+              const SizedBox(width: 8),
+              _buildStatCard(
+                'Đã check-in',
+                '${tourSlot.bookingStats.checkedInCount}',
+                Icons.check_circle,
+                Colors.green,
+              ),
+              const SizedBox(width: 8),
+              _buildStatCard(
+                'Tổng khách',
+                '${tourSlot.bookingStats.totalGuests}',
+                Icons.person,
+                Colors.orange,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// [LEGACY] Build tour header - kept for backward compatibility
   Widget _buildTourHeader(dynamic tour) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -229,6 +369,119 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
     );
   }
 
+  /// [NEW] Build tour slot selection view
+  Widget _buildTourSlotSelectionView(TourGuideProvider tourGuideProvider) {
+    if (tourGuideProvider.tourSlots.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.calendar_today, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'Không có tour slot nào',
+              style: TextStyle(fontSize: 18, color: Colors.grey),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Bạn chưa được phân công tour slot nào',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        // Header
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).primaryColor.withOpacity(0.1),
+            border: Border(
+              bottom: BorderSide(
+                color: Theme.of(context).dividerColor,
+                width: 1,
+              ),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Chọn Tour Slot để Check-in',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Chọn tour slot bạn muốn check-in khách hàng',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Tour Slots List
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: tourGuideProvider.tourSlots.length,
+            itemBuilder: (context, index) {
+              final slot = tourGuideProvider.tourSlots[index];
+              final hasBookings = slot.bookingStats.totalBookings > 0;
+
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                elevation: hasBookings ? 3 : 1,
+                child: ListTile(
+                  leading: hasBookings
+                    ? Icon(Icons.people, color: Colors.green[600], size: 28)
+                    : Icon(Icons.people_outline, color: Colors.grey[400], size: 28),
+                  title: Text(
+                    slot.tourDetails.title,
+                    style: TextStyle(
+                      fontWeight: hasBookings ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Ngày: ${slot.tourDate}'),
+                      Text('Trạng thái: ${slot.status}'),
+                      Row(
+                        children: [
+                          Text('${slot.bookingStats.totalBookings} booking'),
+                          const SizedBox(width: 8),
+                          Text('•'),
+                          const SizedBox(width: 8),
+                          Text('${slot.bookingStats.totalGuests} khách'),
+                          if (hasBookings) ...[
+                            const SizedBox(width: 8),
+                            Icon(Icons.fiber_manual_record,
+                              color: Colors.green[600], size: 8),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                  trailing: const Icon(Icons.arrow_forward_ios),
+                  onTap: () => _selectTourSlot(slot),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// [LEGACY] Build tour selection view - kept for backward compatibility
   Widget _buildTourSelectionView(TourGuideProvider tourGuideProvider) {
     return TourSelectionWidget(
       tours: tourGuideProvider.activeTours,
@@ -238,27 +491,372 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
   }
 
   Widget _buildGuestListView(TourGuideProvider tourGuideProvider) {
-    return GuestListWidget(
-      bookings: tourGuideProvider.tourBookings,
-      selectedTour: _selectedTour,
-      onCheckIn: (booking) async {
-        final success = await tourGuideProvider.checkInGuest(
-          booking.id,
-          notes: 'Check-in thủ công',
-        );
+    // ✅ NEW: Use TourSlot bookings instead of TourOperation bookings
+    final bookings = tourGuideProvider.currentSlotBookingsList;
 
-        if (success) {
-          _showMessage('Check-in thành công cho ${booking.customerName ?? booking.contactName}');
-        } else {
-          _showMessage(tourGuideProvider.errorMessage ?? 'Check-in thất bại', isError: true);
-        }
+    if (bookings.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.people_outline, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'Chưa có booking nào',
+              style: TextStyle(fontSize: 18, color: Colors.grey),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Tour slot này chưa có khách hàng đặt tour',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: bookings.length,
+      itemBuilder: (context, index) {
+        final booking = bookings[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: booking.isCheckedIn ? Colors.green : Colors.orange,
+              child: Icon(
+                booking.isCheckedIn ? Icons.check : Icons.person,
+                color: Colors.white,
+              ),
+            ),
+            title: Text(booking.contactName ?? booking.customerName ?? 'Khách hàng'),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Mã booking: ${booking.bookingCode}'),
+                Text('Số khách: ${booking.numberOfGuests}'),
+                if (booking.isCheckedIn && booking.checkInTime != null)
+                  Text('Check-in: ${booking.checkInTime}'),
+              ],
+            ),
+            trailing: booking.isCheckedIn
+                ? const Icon(Icons.check_circle, color: Colors.green)
+                : ElevatedButton(
+                    onPressed: () => _handleManualCheckIn(booking),
+                    child: const Text('Check-in'),
+                  ),
+          ),
+        );
       },
     );
   }
 
+  /// Handle manual check-in
+  Future<void> _handleManualCheckIn(TourBookingModel booking) async {
+    _showCheckInDialog(booking);
+  }
+
+  /// Show QR check-in dialog with override option
+  void _showQRCheckInDialog(TourBookingModel booking, String qrData) {
+    bool overrideTime = false;
+    String overrideReason = '';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Xác nhận Check-in QR'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Khách hàng: ${booking.customerName ?? booking.contactName}'),
+              Text('Mã booking: ${booking.bookingCode}'),
+              Text('QR Code: $qrData'),
+              Text('Số khách: ${booking.numberOfGuests}'),
+              const SizedBox(height: 16),
+
+              // Override time option
+              Row(
+                children: [
+                  Checkbox(
+                    value: overrideTime,
+                    onChanged: (value) {
+                      setState(() {
+                        overrideTime = value ?? false;
+                        if (!overrideTime) {
+                          overrideReason = '';
+                        }
+                      });
+                    },
+                  ),
+                  const Expanded(
+                    child: Text(
+                      'Check-in sớm (bỏ qua kiểm tra thời gian)',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+
+              // Override reason input
+              if (overrideTime) ...[
+                const SizedBox(height: 8),
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Lý do check-in sớm *',
+                    hintText: 'Nhập lý do tại sao cần check-in sớm...',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  maxLines: 2,
+                  onChanged: (value) {
+                    overrideReason = value;
+                  },
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[50],
+                    border: Border.all(color: Colors.orange[200]!),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning, color: Colors.orange[700], size: 16),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Check-in sớm sẽ được ghi log đặc biệt',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 16),
+              const Text('Bạn có chắc chắn muốn check-in cho khách hàng này?'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                // Validate override reason if override is enabled
+                if (overrideTime && overrideReason.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Vui lòng nhập lý do check-in sớm'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                Navigator.of(context).pop();
+                _performQRCheckIn(booking, qrData, overrideTime: overrideTime, overrideReason: overrideReason);
+              },
+              child: Text(overrideTime ? 'Check-in sớm' : 'Check-in'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Show check-in dialog with override option
+  void _showCheckInDialog(TourBookingModel booking) {
+    bool overrideTime = false;
+    String overrideReason = '';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Xác nhận Check-in'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Khách hàng: ${booking.customerName ?? booking.contactName}'),
+              Text('Mã booking: ${booking.bookingCode}'),
+              Text('Số khách: ${booking.numberOfGuests}'),
+              const SizedBox(height: 16),
+
+              // Override time option
+              Row(
+                children: [
+                  Checkbox(
+                    value: overrideTime,
+                    onChanged: (value) {
+                      setState(() {
+                        overrideTime = value ?? false;
+                        if (!overrideTime) {
+                          overrideReason = '';
+                        }
+                      });
+                    },
+                  ),
+                  const Expanded(
+                    child: Text(
+                      'Check-in sớm (bỏ qua kiểm tra thời gian)',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+
+              // Override reason input
+              if (overrideTime) ...[
+                const SizedBox(height: 8),
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Lý do check-in sớm *',
+                    hintText: 'Nhập lý do tại sao cần check-in sớm...',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  maxLines: 2,
+                  onChanged: (value) {
+                    overrideReason = value;
+                  },
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[50],
+                    border: Border.all(color: Colors.orange[200]!),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning, color: Colors.orange[700], size: 16),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Check-in sớm sẽ được ghi log đặc biệt',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 16),
+              const Text('Bạn có chắc chắn muốn check-in cho khách hàng này?'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                // Validate override reason if override is enabled
+                if (overrideTime && overrideReason.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Vui lòng nhập lý do check-in sớm'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                Navigator.of(context).pop();
+                _performCheckIn(booking, overrideTime: overrideTime, overrideReason: overrideReason);
+              },
+              child: Text(overrideTime ? 'Check-in sớm' : 'Check-in'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Perform QR check-in
+  Future<void> _performQRCheckIn(TourBookingModel booking, String qrData, {bool overrideTime = false, String overrideReason = ''}) async {
+    final tourGuideProvider = context.read<TourGuideProvider>();
+
+    bool success;
+    if (overrideTime) {
+      success = await tourGuideProvider.checkInGuestWithOverride(
+        booking.id,
+        qrCodeData: qrData,
+        notes: 'Check-in bằng QR code',
+        overrideTimeRestriction: true,
+        overrideReason: overrideReason,
+      );
+    } else {
+      success = await tourGuideProvider.checkInGuest(
+        booking.id,
+        qrCodeData: qrData,
+        notes: 'Check-in bằng QR code',
+      );
+    }
+
+    if (success) {
+      final message = overrideTime
+          ? 'Check-in sớm thành công cho ${booking.customerName ?? booking.contactName}'
+          : 'Check-in thành công cho ${booking.customerName ?? booking.contactName}';
+      _showMessage(message);
+      // Reload slot bookings to update UI
+      if (_selectedTourSlot != null) {
+        await tourGuideProvider.getTourSlotBookings(_selectedTourSlot!.id);
+      }
+    } else {
+      _showMessage(tourGuideProvider.errorMessage ?? 'Check-in thất bại', isError: true);
+    }
+  }
+
+  /// Perform actual check-in
+  Future<void> _performCheckIn(TourBookingModel booking, {bool overrideTime = false, String overrideReason = ''}) async {
+    final tourGuideProvider = context.read<TourGuideProvider>();
+
+    bool success;
+    if (overrideTime) {
+      success = await tourGuideProvider.checkInGuestWithOverride(
+        booking.id,
+        notes: 'Check-in thủ công',
+        overrideTimeRestriction: true,
+        overrideReason: overrideReason,
+      );
+    } else {
+      success = await tourGuideProvider.checkInGuest(
+        booking.id,
+        notes: 'Check-in thủ công',
+      );
+    }
+
+    if (success) {
+      final message = overrideTime
+          ? 'Check-in sớm thành công cho ${booking.customerName ?? booking.contactName}'
+          : 'Check-in thành công cho ${booking.customerName ?? booking.contactName}';
+      _showMessage(message);
+      // Reload slot bookings to update UI
+      if (_selectedTourSlot != null) {
+        await tourGuideProvider.getTourSlotBookings(_selectedTourSlot!.id);
+      }
+    } else {
+      _showMessage(tourGuideProvider.errorMessage ?? 'Check-in thất bại', isError: true);
+    }
+  }
+
   Widget _buildBottomActionBar(TourGuideProvider tourGuideProvider) {
-    final totalGuests = tourGuideProvider.tourBookings.length;
-    final checkedInGuests = tourGuideProvider.tourBookings.where((b) => b.isCheckedIn).length;
+    // ✅ NEW: Use TourSlot bookings statistics
+    final bookings = tourGuideProvider.currentSlotBookingsList;
+    final totalGuests = bookings.length;
+    final checkedInGuests = bookings.where((b) => b.isCheckedIn).length;
     final progressPercent = totalGuests > 0 ? (checkedInGuests / totalGuests * 100).round() : 0;
     final canStartTour = progressPercent >= 70; // 70% check-in required
 
@@ -317,11 +915,14 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: canStartTour ? () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => TimelinePage(tourId: _selectedTour!.id),
-                  ),
-                );
+                // ✅ NEW: Use TourSlot ID for timeline
+                if (_selectedTourSlot != null) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => TimelinePage(tourId: _selectedTourSlot!.id),
+                    ),
+                  );
+                }
               } : null,
               icon: Icon(canStartTour ? Icons.play_arrow : Icons.hourglass_empty),
               label: Text(canStartTour ? 'Bắt đầu tour' : 'Cần ít nhất 70% check-in'),
@@ -332,6 +933,111 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Show tour slot selection dialog
+  void _showTourSlotSelectionDialog() {
+    final tourGuideProvider = context.read<TourGuideProvider>();
+
+    // ✅ Sort slots: slots with bookings first, then by date
+    final sortedSlots = List<TourGuideSlotModel>.from(tourGuideProvider.tourSlots)
+      ..sort((a, b) {
+        // First priority: slots with bookings
+        if (a.bookingStats.totalBookings > 0 && b.bookingStats.totalBookings == 0) return -1;
+        if (a.bookingStats.totalBookings == 0 && b.bookingStats.totalBookings > 0) return 1;
+
+        // Second priority: by date (ascending)
+        return a.tourDate.compareTo(b.tourDate);
+      });
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Chọn Tour Slot'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 300,
+          child: ListView.builder(
+            itemCount: sortedSlots.length,
+            itemBuilder: (context, index) {
+              final slot = sortedSlots[index];
+              final isSelected = _selectedTourSlot?.id == slot.id;
+              final hasBookings = slot.bookingStats.totalBookings > 0;
+
+              return ListTile(
+                title: Text(slot.tourDetails.title),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${slot.tourDate} - ${slot.status}'),
+                    if (hasBookings)
+                      Text(
+                        '${slot.bookingStats.totalBookings} booking(s), ${slot.bookingStats.totalGuests} khách',
+                        style: TextStyle(
+                          color: Colors.green[600],
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                  ],
+                ),
+                leading: hasBookings
+                  ? Icon(Icons.people, color: Colors.green[600])
+                  : Icon(Icons.people_outline, color: Colors.grey[400]),
+                trailing: isSelected ? const Icon(Icons.check, color: Colors.green) : null,
+                selected: isSelected,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _selectTourSlot(slot);
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Hủy'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build stat card widget
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.grey,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }

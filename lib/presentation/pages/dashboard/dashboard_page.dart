@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
@@ -69,27 +70,62 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      extendBodyBehindAppBar: true,
+      extendBodyBehindAppBar: false,
       appBar: AppBar(
         title: const Text('Dashboard HDV'),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppTheme.primaryColor,
+        foregroundColor: Colors.white,
         elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          IconButton(
-            icon: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.mail_outline),
-            ),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const TourInvitationsPage(),
+          Consumer<TourGuideProvider>(
+            builder: (context, tgp, _) {
+              final pending = tgp.invitationStatistics?.pendingCount ?? 0;
+              return IconButton(
+                icon: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.mail_outline, color: Colors.white),
+                    ),
+                    if (pending > 0)
+                      Positioned(
+                        right: -2,
+                        top: -2,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: colorScheme.error,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: Text(
+                            '$pending',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const TourInvitationsPage(),
+                    ),
+                  );
+                },
+                tooltip: 'Lời mời tour',
               );
             },
           ),
@@ -100,7 +136,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.refresh),
+              child: const Icon(Icons.refresh, color: Colors.white),
             ),
             onPressed: _loadData,
           ),
@@ -116,7 +152,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.more_vert),
+              child: const Icon(Icons.more_vert, color: Colors.white),
             ),
             itemBuilder: (context) => [
               const PopupMenuItem(
@@ -134,16 +170,7 @@ class _DashboardPageState extends State<DashboardPage> {
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFF8FAFC),
-              Color(0xFFE2E8F0),
-            ],
-          ),
-        ),
+        color: Colors.grey[50],
         child: Consumer2<AuthProvider, TourGuideProvider>(
           builder: (context, authProvider, tourGuideProvider, child) {
             // Show skeleton loading on initial load
@@ -155,7 +182,7 @@ class _DashboardPageState extends State<DashboardPage> {
               onRefresh: _loadData,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 120, 16, 100),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                 child: AnimationLimiter(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -167,7 +194,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       ),
                       children: [
                         // Welcome Section
-                        _buildModernWelcomeSection(authProvider),
+                        _buildModernWelcomeSection(authProvider, tourGuideProvider),
 
                         const SizedBox(height: 32),
 
@@ -205,13 +232,21 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
           );
         },
-        backgroundColor: AppTheme.errorColor,
+        backgroundColor: colorScheme.error,
+        tooltip: 'Báo cáo sự cố',
         child: const Icon(Icons.warning, color: Colors.white),
       ),
     );
   }
 
-  Widget _buildModernWelcomeSection(AuthProvider authProvider) {
+  Widget _buildModernWelcomeSection(
+    AuthProvider authProvider,
+    TourGuideProvider tourGuideProvider,
+  ) {
+    final cs = Theme.of(context).colorScheme;
+    final userName = authProvider.user?.name ?? 'Hướng dẫn viên';
+    final activeTours = tourGuideProvider.activeTours.length;
+    final pendingInvites = tourGuideProvider.invitationStatistics?.pendingCount ?? 0;
     return SimpleGlassmorphicCard(
       child: Row(
         children: [
@@ -220,10 +255,10 @@ class _DashboardPageState extends State<DashboardPage> {
             height: 60,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: AppTheme.primaryGradient,
+              gradient: AppTheme.indigoGradient,
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                  color: cs.primary.withOpacity(0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -237,26 +272,26 @@ class _DashboardPageState extends State<DashboardPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Xin chào!',
+                  _greetingForNow(),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.black87,
-                    fontWeight: FontWeight.w500,
-                  ),
+                        color: cs.onSurface.withOpacity(0.8),
+                        fontWeight: FontWeight.w500,
+                      ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  authProvider.user?.name ?? 'Hướng dẫn viên',
+                  userName,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Colors.black87,
-                    fontWeight: FontWeight.bold,
-                  ),
+                        color: cs.onSurface,
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Chúc bạn có một ngày làm việc hiệu quả',
+                  'Hôm nay có $activeTours tour, $pendingInvites lời mời đang chờ',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.black54,
-                  ),
+                        color: cs.onSurfaceVariant,
+                      ),
                 ),
               ],
             ),
@@ -267,15 +302,23 @@ class _DashboardPageState extends State<DashboardPage> {
               color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.arrow_forward_ios,
               size: 16,
-              color: Colors.black54,
+              color: cs.onSurface.withOpacity(0.6),
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _greetingForNow() {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 11) return 'Chào buổi sáng ☀️';
+    if (hour >= 11 && hour < 14) return 'Chào buổi trưa 🍽️';
+    if (hour >= 14 && hour < 18) return 'Chào buổi chiều 🌤️';
+    return 'Chào buổi tối 🌙';
   }
 
 
@@ -398,9 +441,9 @@ class _DashboardPageState extends State<DashboardPage> {
             Text(
               'Tours được phân công',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
             ),
             if (tourGuideProvider.activeTours.isNotEmpty)
               Container(
@@ -466,14 +509,16 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildQuickActionsSection() {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.06),
             spreadRadius: 1,
             blurRadius: 10,
             offset: const Offset(0, 2),
@@ -488,7 +533,7 @@ class _DashboardPageState extends State<DashboardPage> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              color: Colors.grey[800],
+              color: cs.onSurface,
             ),
           ),
           const SizedBox(height: 16),
@@ -502,6 +547,7 @@ class _DashboardPageState extends State<DashboardPage> {
               subtitle: 'Xem và quản lý tour đã được phân công',
               color: Colors.indigo,
               onTap: () {
+                HapticFeedback.lightImpact();
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => const AcceptedToursPage(),
@@ -861,6 +907,7 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _buildInvitationSummaryCard(int pendingCount, TourInvitation? latestInvitation) {
     return GestureDetector(
       onTap: () {
+        HapticFeedback.selectionClick();
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => const TourInvitationsPage(),
@@ -872,32 +919,22 @@ class _DashboardPageState extends State<DashboardPage> {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: pendingCount > 0
-            ? LinearGradient(
-                colors: [
-                  AppTheme.primaryColor.withOpacity(0.1),
-                  AppTheme.secondaryColor.withOpacity(0.05),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              )
-            : LinearGradient(
-                colors: [
-                  Colors.grey.withOpacity(0.05),
-                  Colors.grey.withOpacity(0.02),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              ? AppTheme.indigoGradient
+              : LinearGradient(
+                  colors: [Colors.black12, Colors.black12],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: pendingCount > 0
-              ? AppTheme.primaryColor.withOpacity(0.2)
-              : Colors.grey.withOpacity(0.2),
+                ? Theme.of(context).colorScheme.primary.withOpacity(0.2)
+                : Theme.of(context).colorScheme.outlineVariant.withOpacity(0.4),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Theme.of(context).colorScheme.shadow.withOpacity(0.05),
               blurRadius: 10,
               offset: const Offset(0, 2),
             ),
@@ -918,11 +955,11 @@ class _DashboardPageState extends State<DashboardPage> {
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                gradient: AppTheme.primaryGradient,
+                gradient: AppTheme.indigoGradient,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.primaryColor.withOpacity(0.3),
+                    color: Colors.indigo.withOpacity(0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -941,7 +978,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: AppTheme.errorColor,
+                    color: Theme.of(context).colorScheme.error,
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
                   ),
@@ -959,7 +996,7 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
         const SizedBox(width: 16),
 
-        // Nội dung
+          // Nội dung
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -967,18 +1004,18 @@ class _DashboardPageState extends State<DashboardPage> {
               Text(
                 pendingCount == 1 ? '1 lời mời mới' : '$pendingCount lời mời mới',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
+                      fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                    ),
               ),
               const SizedBox(height: 4),
               if (latestInvitation != null) ...[
                 Text(
                   latestInvitation.tourTitle ?? 'Tour không có tên',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.black54,
-                    fontWeight: FontWeight.w500,
-                  ),
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w500,
+                      ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -986,15 +1023,15 @@ class _DashboardPageState extends State<DashboardPage> {
                 Text(
                   'Nhận ${_formatDateTime(latestInvitation.invitedAt)}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.grey[600],
-                  ),
+                        color: Colors.grey[600],
+                      ),
                 ),
               ] else ...[
                 Text(
                   'Nhấn để xem chi tiết',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.black54,
-                  ),
+                        color: Colors.black54,
+                      ),
                 ),
               ],
             ],
@@ -1005,13 +1042,13 @@ class _DashboardPageState extends State<DashboardPage> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: AppTheme.primaryColor.withOpacity(0.1),
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
             Icons.arrow_forward_ios,
             size: 16,
-            color: AppTheme.primaryColor,
+            color: Theme.of(context).colorScheme.primary,
           ),
         ),
       ],
@@ -1025,12 +1062,12 @@ class _DashboardPageState extends State<DashboardPage> {
           width: 56,
           height: 56,
           decoration: BoxDecoration(
-            color: Colors.grey.withOpacity(0.1),
+            color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.2),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Icon(
             Icons.mail_outline,
-            color: Colors.grey[400],
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
             size: 28,
           ),
         ),
@@ -1042,16 +1079,16 @@ class _DashboardPageState extends State<DashboardPage> {
               Text(
                 'Không có lời mời nào',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[600],
-                ),
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
               ),
               const SizedBox(height: 4),
               Text(
                 'Bạn sẽ nhận được thông báo khi có lời mời mới',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.grey[500],
-                ),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
               ),
             ],
           ),
@@ -1059,13 +1096,13 @@ class _DashboardPageState extends State<DashboardPage> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.grey.withOpacity(0.1),
+            color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.2),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
             Icons.arrow_forward_ios,
             size: 16,
-            color: Colors.grey[400],
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ],

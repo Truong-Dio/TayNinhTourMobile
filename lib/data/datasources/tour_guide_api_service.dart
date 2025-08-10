@@ -8,6 +8,7 @@ import '../models/timeline_progress_models.dart';
 import '../models/timeline_request_models.dart';
 import '../models/tour_invitation_model.dart';
 import '../models/tour_slot_model.dart';
+import '../models/tour_guide_slot_models.dart';
 import '../../core/constants/api_constants.dart';
 
 part 'tour_guide_api_service.g.dart';
@@ -20,7 +21,19 @@ abstract class TourGuideApiService {
   @GET(ApiConstants.myActiveTours)
   Future<List<ActiveTourModel>> getMyActiveTours();
 
-  /// Get tour bookings for a specific tour operation
+  /// [NEW] Get tour slots for current tour guide
+  @GET('/TourGuide/my-tour-slots')
+  Future<List<TourGuideSlotModel>> getMyTourSlots(
+    @Query('fromDate') String? fromDate,
+  );
+
+  /// [NEW] Get tour bookings for a specific tour slot
+  @GET('/TourGuide/tour-slot/{tourSlotId}/bookings')
+  Future<TourSlotBookingsResponse> getTourSlotBookings(
+    @Path('tourSlotId') String tourSlotId,
+  );
+
+  /// [LEGACY] Get tour bookings for a specific tour operation - for backward compatibility
   @GET('/TourGuide/tour/{operationId}/bookings')
   Future<List<TourBookingModel>> getTourBookings(
     @Path('operationId') String operationId,
@@ -45,6 +58,13 @@ abstract class TourGuideApiService {
   Future<void> checkInGuest(
     @Path('bookingId') String bookingId,
     @Body() CheckInGuestRequest request,
+  );
+
+  /// Check-in a guest with override time restriction
+  @POST('/TourGuide/checkin-override/{bookingId}')
+  Future<void> checkInGuestWithOverride(
+    @Path('bookingId') String bookingId,
+    @Body() CheckInGuestWithOverrideRequest request,
   );
 
   /// Complete a timeline item (LEGACY - for backward compatibility)
@@ -646,6 +666,27 @@ class CheckInGuestRequest {
   Map<String, dynamic> toJson() => {
     'qrCodeData': qrCodeData,
     'notes': notes,
+  };
+}
+
+class CheckInGuestWithOverrideRequest {
+  final String? qrCodeData;
+  final String? notes;
+  final bool overrideTimeRestriction;
+  final String? overrideReason;
+
+  CheckInGuestWithOverrideRequest({
+    this.qrCodeData,
+    this.notes,
+    this.overrideTimeRestriction = false,
+    this.overrideReason,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'qrCodeData': qrCodeData,
+    'notes': notes,
+    'overrideTimeRestriction': overrideTimeRestriction,
+    'overrideReason': overrideReason,
   };
 }
 

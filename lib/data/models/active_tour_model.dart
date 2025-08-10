@@ -8,11 +8,18 @@ class ActiveTourModel extends ActiveTour {
   @JsonKey(name: 'tourTemplate')
   final TourTemplateModel tourTemplateModel;
 
+  @JsonKey(name: 'currentSlot')
+  final TourSlotModel? currentSlotModel;
+
+  @JsonKey(name: 'imageUrls')
+  final List<String> imageUrlsList;
+
   const ActiveTourModel({
     required super.id,
     required super.tourDetailsId,
     required super.title,
     super.description,
+    this.imageUrlsList = const [],
     required super.startDate,
     required super.endDate,
     required super.price,
@@ -22,7 +29,12 @@ class ActiveTourModel extends ActiveTour {
     required super.bookingsCount,
     required super.status,
     required this.tourTemplateModel,
-  }) : super(tourTemplate: tourTemplateModel);
+    this.currentSlotModel,
+  }) : super(
+    imageUrls: imageUrlsList,
+    tourTemplate: tourTemplateModel,
+    currentSlot: currentSlotModel,
+  );
 
   factory ActiveTourModel.fromJson(Map<String, dynamic> json) => _$ActiveTourModelFromJson(json);
 
@@ -34,6 +46,7 @@ class ActiveTourModel extends ActiveTour {
       tourDetailsId: tourDetailsId,
       title: title,
       description: description,
+      imageUrls: imageUrlsList,
       startDate: startDate,
       endDate: endDate,
       price: price,
@@ -43,6 +56,7 @@ class ActiveTourModel extends ActiveTour {
       bookingsCount: bookingsCount,
       status: status,
       tourTemplate: tourTemplateModel.toEntity(),
+      currentSlot: currentSlotModel?.toEntity(),
     );
   }
 }
@@ -56,11 +70,11 @@ class TourTemplateModel extends TourTemplate {
     required super.endLocation,
     super.description,
   });
-  
+
   factory TourTemplateModel.fromJson(Map<String, dynamic> json) => _$TourTemplateModelFromJson(json);
-  
+
   Map<String, dynamic> toJson() => _$TourTemplateModelToJson(this);
-  
+
   TourTemplate toEntity() {
     return TourTemplate(
       id: id,
@@ -68,6 +82,31 @@ class TourTemplateModel extends TourTemplate {
       startLocation: startLocation,
       endLocation: endLocation,
       description: description,
+    );
+  }
+}
+
+@JsonSerializable()
+class TourSlotModel extends TourSlot {
+  const TourSlotModel({
+    required super.id,
+    required super.tourDate,
+    required super.maxGuests,
+    required super.currentBookings,
+    required super.status,
+  });
+
+  factory TourSlotModel.fromJson(Map<String, dynamic> json) => _$TourSlotModelFromJson(json);
+
+  Map<String, dynamic> toJson() => _$TourSlotModelToJson(this);
+
+  TourSlot toEntity() {
+    return TourSlot(
+      id: id,
+      tourDate: tourDate,
+      maxGuests: maxGuests,
+      currentBookings: currentBookings,
+      status: status,
     );
   }
 }

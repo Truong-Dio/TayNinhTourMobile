@@ -12,16 +12,14 @@ class TourBookingModel extends TourBooking {
     super.contactPhone,
     super.contactEmail,
     required super.numberOfGuests,
-    required super.adultCount,
-    required super.childCount,
     required super.totalPrice,
     required super.isCheckedIn,
     super.checkInTime,
     super.checkInNotes,
     super.qrCodeData,
     super.customerName,
-    required super.status,
-    required super.bookingDate,
+    super.tourSlotDate,
+    super.tourSlotId,
   });
   
   factory TourBookingModel.fromJson(Map<String, dynamic> json) => _$TourBookingModelFromJson(json);
@@ -36,16 +34,14 @@ class TourBookingModel extends TourBooking {
       contactPhone: contactPhone,
       contactEmail: contactEmail,
       numberOfGuests: numberOfGuests,
-      adultCount: adultCount,
-      childCount: childCount,
       totalPrice: totalPrice,
       isCheckedIn: isCheckedIn,
       checkInTime: checkInTime,
       checkInNotes: checkInNotes,
       qrCodeData: qrCodeData,
       customerName: customerName,
-      status: status,
-      bookingDate: bookingDate,
+      tourSlotDate: tourSlotDate,
+      tourSlotId: tourSlotId,
     );
   }
 }

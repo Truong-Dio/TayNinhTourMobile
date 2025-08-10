@@ -60,6 +60,77 @@ class _TourGuideApiService implements TourGuideApiService {
   }
 
   @override
+  Future<List<TourGuideSlotModel>> getMyTourSlots(String? fromDate) async {
+    final _extra = <String, dynamic>{};
+    final queryParameters = <String, dynamic>{r'fromDate': fromDate};
+    queryParameters.removeWhere((k, v) => v == null);
+    final _headers = <String, dynamic>{};
+    const Map<String, dynamic>? _data = null;
+    final _options = _setStreamType<List<TourGuideSlotModel>>(Options(
+      method: 'GET',
+      headers: _headers,
+      extra: _extra,
+    )
+        .compose(
+          _dio.options,
+          '/TourGuide/my-tour-slots',
+          queryParameters: queryParameters,
+          data: _data,
+        )
+        .copyWith(
+            baseUrl: _combineBaseUrls(
+          _dio.options.baseUrl,
+          baseUrl,
+        )));
+    final _result = await _dio.fetch<List<dynamic>>(_options);
+    late List<TourGuideSlotModel> _value;
+    try {
+      _value = _result.data!
+          .map((dynamic i) =>
+              TourGuideSlotModel.fromJson(i as Map<String, dynamic>))
+          .toList();
+    } on Object catch (e, s) {
+      errorLogger?.logError(e, s, _options);
+      rethrow;
+    }
+    return _value;
+  }
+
+  @override
+  Future<TourSlotBookingsResponse> getTourSlotBookings(
+      String tourSlotId) async {
+    final _extra = <String, dynamic>{};
+    final queryParameters = <String, dynamic>{};
+    final _headers = <String, dynamic>{};
+    const Map<String, dynamic>? _data = null;
+    final _options = _setStreamType<TourSlotBookingsResponse>(Options(
+      method: 'GET',
+      headers: _headers,
+      extra: _extra,
+    )
+        .compose(
+          _dio.options,
+          '/TourGuide/tour-slot/${tourSlotId}/bookings',
+          queryParameters: queryParameters,
+          data: _data,
+        )
+        .copyWith(
+            baseUrl: _combineBaseUrls(
+          _dio.options.baseUrl,
+          baseUrl,
+        )));
+    final _result = await _dio.fetch<Map<String, dynamic>>(_options);
+    late TourSlotBookingsResponse _value;
+    try {
+      _value = TourSlotBookingsResponse.fromJson(_result.data!);
+    } on Object catch (e, s) {
+      errorLogger?.logError(e, s, _options);
+      rethrow;
+    }
+    return _value;
+  }
+
+  @override
   Future<List<TourBookingModel>> getTourBookings(String operationId) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
@@ -190,6 +261,35 @@ class _TourGuideApiService implements TourGuideApiService {
         .compose(
           _dio.options,
           '/TourGuide/checkin/${bookingId}',
+          queryParameters: queryParameters,
+          data: _data,
+        )
+        .copyWith(
+            baseUrl: _combineBaseUrls(
+          _dio.options.baseUrl,
+          baseUrl,
+        )));
+    await _dio.fetch<void>(_options);
+  }
+
+  @override
+  Future<void> checkInGuestWithOverride(
+    String bookingId,
+    CheckInGuestWithOverrideRequest request,
+  ) async {
+    final _extra = <String, dynamic>{};
+    final queryParameters = <String, dynamic>{};
+    final _headers = <String, dynamic>{};
+    final _data = <String, dynamic>{};
+    _data.addAll(request.toJson());
+    final _options = _setStreamType<void>(Options(
+      method: 'POST',
+      headers: _headers,
+      extra: _extra,
+    )
+        .compose(
+          _dio.options,
+          '/TourGuide/checkin-override/${bookingId}',
           queryParameters: queryParameters,
           data: _data,
         )

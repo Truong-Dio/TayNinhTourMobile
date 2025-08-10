@@ -8,17 +8,15 @@ class TourBooking extends Equatable {
   final String? contactPhone;
   final String? contactEmail;
   final int numberOfGuests;
-  final int adultCount;
-  final int childCount;
   final double totalPrice;
   final bool isCheckedIn;
   final DateTime? checkInTime;
   final String? checkInNotes;
   final String? qrCodeData;
   final String? customerName;
-  final String status;
-  final DateTime bookingDate;
-  
+  final String? tourSlotDate; // ✅ NEW: From API response
+  final String? tourSlotId;   // ✅ NEW: From API response
+
   const TourBooking({
     required this.id,
     required this.bookingCode,
@@ -26,16 +24,14 @@ class TourBooking extends Equatable {
     this.contactPhone,
     this.contactEmail,
     required this.numberOfGuests,
-    required this.adultCount,
-    required this.childCount,
     required this.totalPrice,
     required this.isCheckedIn,
     this.checkInTime,
     this.checkInNotes,
     this.qrCodeData,
     this.customerName,
-    required this.status,
-    required this.bookingDate,
+    this.tourSlotDate,
+    this.tourSlotId,
   });
   
   @override
@@ -46,15 +42,13 @@ class TourBooking extends Equatable {
     contactPhone,
     contactEmail,
     numberOfGuests,
-    adultCount,
-    childCount,
     totalPrice,
     isCheckedIn,
     checkInTime,
     checkInNotes,
     qrCodeData,
     customerName,
-    status,
-    bookingDate,
+    tourSlotDate,
+    tourSlotId,
   ];
 }

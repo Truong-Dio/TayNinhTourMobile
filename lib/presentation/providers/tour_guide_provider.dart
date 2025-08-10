@@ -3,11 +3,13 @@ import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 import 'package:dio/dio.dart';
 
+import '../../core/errors/exceptions.dart';
 import '../../data/datasources/tour_guide_api_service.dart';
 import '../../data/models/tour_booking_model.dart';
 import '../../data/models/timeline_item_model.dart';
 import '../../data/models/timeline_progress_models.dart';
 import '../../data/models/tour_slot_model.dart';
+import '../../data/models/tour_guide_slot_models.dart';
 import '../../domain/entities/active_tour.dart';
 import '../../domain/entities/tour_booking.dart';
 import '../../domain/entities/timeline_item.dart';
@@ -34,6 +36,10 @@ class TourGuideProvider extends ChangeNotifier {
   String? _errorMessage;
   String? _currentTourDetailsId;
   String? _currentTourSlotId;
+
+  // NEW: TourSlot-based state
+  List<TourGuideSlotModel> _tourSlots = [];
+  TourSlotBookingsResponse? _currentSlotBookings;
   
   // Getters
   bool get isLoading => _isLoading;
@@ -44,6 +50,11 @@ class TourGuideProvider extends ChangeNotifier {
   List<TourInvitation> get tourInvitations => _tourInvitations;
   InvitationStatistics? get invitationStatistics => _invitationStatistics;
   String? get errorMessage => _errorMessage;
+
+  // NEW: TourSlot-based getters
+  List<TourGuideSlotModel> get tourSlots => _tourSlots;
+  TourSlotBookingsResponse? get currentSlotBookings => _currentSlotBookings;
+  List<TourBookingModel> get currentSlotBookingsList => _currentSlotBookings?.bookings ?? [];
   
   /// Get active tours for current tour guide
   Future<void> getMyActiveTours() async {
@@ -96,7 +107,68 @@ class TourGuideProvider extends ChangeNotifier {
       _setLoading(false);
     }
   }
-  
+
+  /// [NEW] Get tour slots for current tour guide
+  Future<void> getMyTourSlots({DateTime? fromDate}) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      final fromDateStr = fromDate?.toIso8601String();
+      final response = await _tourGuideApiService.getMyTourSlots(fromDateStr);
+      _tourSlots = response;
+      _logger.i('Loaded ${_tourSlots.length} tour slots');
+      notifyListeners();
+    } catch (e) {
+      _logger.e('Error loading tour slots: $e');
+      _setError('Có lỗi xảy ra khi tải danh sách tour slots');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// [NEW] Get tour bookings for a specific tour slot
+  Future<void> getTourSlotBookings(String tourSlotId) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      final response = await _tourGuideApiService.getTourSlotBookings(tourSlotId);
+      _currentSlotBookings = response;
+      _currentTourSlotId = tourSlotId;
+      _logger.i('Loaded ${response.bookings.length} bookings for tour slot');
+      notifyListeners();
+    } catch (e) {
+      _logger.e('Error loading tour slot bookings: $e');
+      _setError('Có lỗi xảy ra khi tải danh sách khách hàng theo slot');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// [NEW] Find booking by QR code in current slot
+  TourBookingModel? findBookingByQRCode(String qrCodeData) {
+    if (_currentSlotBookings == null) return null;
+
+    try {
+      return _currentSlotBookings!.bookings.firstWhere(
+        (booking) => booking.qrCodeData == qrCodeData,
+      );
+    } catch (e) {
+      _logger.w('Booking not found for QR code: $qrCodeData');
+      return null;
+    }
+  }
+
+  /// [NEW] Check if booking belongs to current slot
+  bool isBookingInCurrentSlot(String bookingId) {
+    if (_currentSlotBookings == null) return false;
+
+    return _currentSlotBookings!.bookings.any(
+      (booking) => booking.id == bookingId,
+    );
+  }
+
   /// Get tour timeline for a specific tour operation
   Future<List<TimelineItemModel>> getTourTimeline(String operationId) async {
     try {
@@ -129,7 +201,42 @@ class TourGuideProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       _logger.e('Error checking in guest: $e');
-      _setError('Có lỗi xảy ra khi check-in khách hàng');
+
+      // Extract message from custom exceptions
+      final errorMessage = _extractErrorMessage(e, 'Có lỗi xảy ra khi check-in khách hàng');
+      _setError(errorMessage);
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Check-in a guest with override time restriction
+  Future<bool> checkInGuestWithOverride(
+    String bookingId, {
+    String? qrCodeData,
+    String? notes,
+    bool overrideTimeRestriction = false,
+    String? overrideReason,
+  }) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      final request = CheckInGuestWithOverrideRequest(
+        qrCodeData: qrCodeData,
+        notes: notes,
+        overrideTimeRestriction: overrideTimeRestriction,
+        overrideReason: overrideReason,
+      );
+      await _tourGuideApiService.checkInGuestWithOverride(bookingId, request);
+      return true;
+    } catch (e) {
+      _logger.e('Error checking in guest with override: $e');
+
+      // Extract message from custom exceptions
+      final errorMessage = _extractErrorMessage(e, 'Có lỗi xảy ra khi check-in sớm khách hàng');
+      _setError(errorMessage);
       return false;
     } finally {
       _setLoading(false);
@@ -153,7 +260,8 @@ class TourGuideProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       _logger.e('Error completing timeline item: $e');
-      _setError('Có lỗi xảy ra khi hoàn thành mục lịch trình');
+      final errorMessage = _extractErrorMessage(e, 'Có lỗi xảy ra khi hoàn thành mục lịch trình');
+      _setError(errorMessage);
       return false;
     } finally {
       _setLoading(false);
@@ -393,15 +501,31 @@ class TourGuideProvider extends ChangeNotifier {
     _isLoading = loading;
     notifyListeners();
   }
-  
+
   void _setError(String error) {
     _errorMessage = error;
     notifyListeners();
   }
-  
+
   void _clearError() {
     _errorMessage = null;
     notifyListeners();
+  }
+
+  /// Extract error message from exceptions
+  String _extractErrorMessage(dynamic error, String defaultMessage) {
+    if (error is ValidationException) {
+      return error.message;
+    } else if (error is ServerException) {
+      return error.message;
+    } else if (error is NetworkException) {
+      return error.message;
+    } else if (error is AuthException) {
+      return error.message;
+    } else if (error is AppException) {
+      return error.message;
+    }
+    return defaultMessage;
   }
   
   // Clear data when switching tours

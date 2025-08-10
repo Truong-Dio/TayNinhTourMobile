@@ -14,8 +14,6 @@ TourBookingModel _$TourBookingModelFromJson(Map<String, dynamic> json) =>
       contactPhone: json['contactPhone'] as String?,
       contactEmail: json['contactEmail'] as String?,
       numberOfGuests: (json['numberOfGuests'] as num).toInt(),
-      adultCount: (json['adultCount'] as num).toInt(),
-      childCount: (json['childCount'] as num).toInt(),
       totalPrice: (json['totalPrice'] as num).toDouble(),
       isCheckedIn: json['isCheckedIn'] as bool,
       checkInTime: json['checkInTime'] == null
@@ -24,8 +22,8 @@ TourBookingModel _$TourBookingModelFromJson(Map<String, dynamic> json) =>
       checkInNotes: json['checkInNotes'] as String?,
       qrCodeData: json['qrCodeData'] as String?,
       customerName: json['customerName'] as String?,
-      status: json['status'] as String,
-      bookingDate: DateTime.parse(json['bookingDate'] as String),
+      tourSlotDate: json['tourSlotDate'] as String?,
+      tourSlotId: json['tourSlotId'] as String?,
     );
 
 Map<String, dynamic> _$TourBookingModelToJson(TourBookingModel instance) =>
@@ -36,14 +34,12 @@ Map<String, dynamic> _$TourBookingModelToJson(TourBookingModel instance) =>
       'contactPhone': instance.contactPhone,
       'contactEmail': instance.contactEmail,
       'numberOfGuests': instance.numberOfGuests,
-      'adultCount': instance.adultCount,
-      'childCount': instance.childCount,
       'totalPrice': instance.totalPrice,
       'isCheckedIn': instance.isCheckedIn,
       'checkInTime': instance.checkInTime?.toIso8601String(),
       'checkInNotes': instance.checkInNotes,
       'qrCodeData': instance.qrCodeData,
       'customerName': instance.customerName,
-      'status': instance.status,
-      'bookingDate': instance.bookingDate.toIso8601String(),
+      'tourSlotDate': instance.tourSlotDate,
+      'tourSlotId': instance.tourSlotId,
     };

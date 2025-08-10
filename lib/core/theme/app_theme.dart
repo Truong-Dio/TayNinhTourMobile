@@ -1,6 +1,89 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+/// App Surfaces & Outline tokens exposed via ThemeExtension
+@immutable
+class AppSurfaces extends ThemeExtension<AppSurfaces> {
+  final Color surfaceContainerLowest;
+  final Color surfaceContainerLow;
+  final Color surfaceContainer;
+  final Color surfaceContainerHigh;
+  final Color surfaceContainerHighest;
+  final Color outlineVariant;
+  final Color outline;
+
+  const AppSurfaces({
+    required this.surfaceContainerLowest,
+    required this.surfaceContainerLow,
+    required this.surfaceContainer,
+    required this.surfaceContainerHigh,
+    required this.surfaceContainerHighest,
+    required this.outlineVariant,
+    required this.outline,
+  });
+
+  /// Build tokens from a ColorScheme following M3 blending idea
+  factory AppSurfaces.fromScheme(ColorScheme scheme) {
+    Color blendOnSurface(double opacity) => Color.alphaBlend(
+          scheme.onSurface.withOpacity(opacity),
+          scheme.surface,
+        );
+
+    return AppSurfaces(
+      surfaceContainerLowest: blendOnSurface(0.05),
+      surfaceContainerLow: blendOnSurface(0.08),
+      surfaceContainer: blendOnSurface(0.11),
+      surfaceContainerHigh: blendOnSurface(0.12),
+      surfaceContainerHighest: blendOnSurface(0.14),
+      outlineVariant: scheme.outlineVariant,
+      outline: scheme.outline,
+    );
+  }
+
+  @override
+  AppSurfaces copyWith({
+    Color? surfaceContainerLowest,
+    Color? surfaceContainerLow,
+    Color? surfaceContainer,
+    Color? surfaceContainerHigh,
+    Color? surfaceContainerHighest,
+    Color? outlineVariant,
+    Color? outline,
+  }) {
+    return AppSurfaces(
+      surfaceContainerLowest:
+          surfaceContainerLowest ?? this.surfaceContainerLowest,
+      surfaceContainerLow: surfaceContainerLow ?? this.surfaceContainerLow,
+      surfaceContainer: surfaceContainer ?? this.surfaceContainer,
+      surfaceContainerHigh:
+          surfaceContainerHigh ?? this.surfaceContainerHigh,
+      surfaceContainerHighest:
+          surfaceContainerHighest ?? this.surfaceContainerHighest,
+      outlineVariant: outlineVariant ?? this.outlineVariant,
+      outline: outline ?? this.outline,
+    );
+  }
+
+  @override
+  AppSurfaces lerp(ThemeExtension<AppSurfaces>? other, double t) {
+    if (other is! AppSurfaces) return this;
+    return AppSurfaces(
+      surfaceContainerLowest:
+          Color.lerp(surfaceContainerLowest, other.surfaceContainerLowest, t)!,
+      surfaceContainerLow:
+          Color.lerp(surfaceContainerLow, other.surfaceContainerLow, t)!,
+      surfaceContainer:
+          Color.lerp(surfaceContainer, other.surfaceContainer, t)!,
+      surfaceContainerHigh:
+          Color.lerp(surfaceContainerHigh, other.surfaceContainerHigh, t)!,
+      surfaceContainerHighest:
+          Color.lerp(surfaceContainerHighest, other.surfaceContainerHighest, t)!,
+      outlineVariant: Color.lerp(outlineVariant, other.outlineVariant, t)!,
+      outline: Color.lerp(outline, other.outline, t)!,
+    );
+  }
+}
+
 /// App Theme Configuration
 class AppTheme {
   // Modern Color Palette
@@ -15,6 +98,13 @@ class AppTheme {
   // Gradient Colors
   static const LinearGradient primaryGradient = LinearGradient(
     colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  // Indigo gradient to match tour pages
+  static const LinearGradient indigoGradient = LinearGradient(
+    colors: [Colors.indigo, Color(0xFF3949AB)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -57,16 +147,20 @@ class AppTheme {
   
   // Light Theme
   static ThemeData get lightTheme {
+    final scheme = ColorScheme.fromSeed(
+      seedColor: primaryColor,
+      brightness: Brightness.light,
+    );
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: primaryColor,
-        brightness: Brightness.light,
-      ),
+      colorScheme: scheme,
       scaffoldBackgroundColor: backgroundColor,
       cardColor: cardColor,
       dividerColor: dividerColor,
+      extensions: <ThemeExtension<dynamic>>[
+        AppSurfaces.fromScheme(scheme),
+      ],
 
       // AppBar Theme
       appBarTheme: AppBarTheme(

@@ -108,7 +108,7 @@ class TimelineProgressCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            timelineItem.specialtyShop!.name,
+                            timelineItem.specialtyShop!.shopName,
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.blue[700],

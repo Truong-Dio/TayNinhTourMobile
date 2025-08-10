@@ -41,7 +41,7 @@ Map<String, dynamic> _$SpecialtyShopModelToJson(SpecialtyShopModel instance) =>
       'notes': instance.notes,
       'rating': instance.rating,
       'shopType': instance.shopType,
-      'isActive': instance.isActive,
+      'isShopActive': instance.isActive,
       'createdAt': instance.createdAt.toIso8601String(),
       'updatedAt': instance.updatedAt?.toIso8601String(),
     };
