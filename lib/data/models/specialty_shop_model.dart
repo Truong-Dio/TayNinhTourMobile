@@ -17,6 +17,7 @@ class SpecialtyShopModel {
   final String? notes;
   final double? rating;
   final String shopType;
+  @JsonKey(name: 'isShopActive')
   final bool isActive;
   final DateTime createdAt;
   final DateTime? updatedAt;

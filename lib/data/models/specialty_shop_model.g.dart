@@ -20,7 +20,7 @@ SpecialtyShopModel _$SpecialtyShopModelFromJson(Map<String, dynamic> json) =>
       notes: json['notes'] as String?,
       rating: (json['rating'] as num?)?.toDouble(),
       shopType: json['shopType'] as String,
-      isActive: json['isActive'] as bool,
+      isActive: json['isShopActive'] as bool,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: json['updatedAt'] == null
           ? null

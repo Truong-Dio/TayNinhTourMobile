@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import '../../data/datasources/tour_guide_api_service.dart';
 import '../../data/models/tour_booking_model.dart';
 import '../../data/models/timeline_item_model.dart';
+import '../../data/models/timeline_progress_models.dart';
 import '../../data/models/tour_slot_model.dart';
 import '../../domain/entities/active_tour.dart';
 import '../../domain/entities/tour_booking.dart';
@@ -27,16 +28,19 @@ class TourGuideProvider extends ChangeNotifier {
   List<ActiveTour> _activeTours = [];
   List<TourBooking> _tourBookings = [];
   List<TimelineItem> _timelineItems = [];
+  TimelineProgressResponse? _timelineProgressResponse; // NEW: Store timeline with progress
   List<TourInvitation> _tourInvitations = [];
   InvitationStatistics? _invitationStatistics;
   String? _errorMessage;
   String? _currentTourDetailsId;
+  String? _currentTourSlotId;
   
   // Getters
   bool get isLoading => _isLoading;
   List<ActiveTour> get activeTours => _activeTours;
   List<TourBooking> get tourBookings => _tourBookings;
   List<TimelineItem> get timelineItems => _timelineItems;
+  TimelineProgressResponse? get timelineProgressResponse => _timelineProgressResponse; // NEW: Getter for timeline progress
   List<TourInvitation> get tourInvitations => _tourInvitations;
   InvitationStatistics? get invitationStatistics => _invitationStatistics;
   String? get errorMessage => _errorMessage;
@@ -293,7 +297,7 @@ class TourGuideProvider extends ChangeNotifier {
     }
   }
 
-  /// Get timeline for tour details
+  /// Get timeline for tour details (OLD - shared timeline)
   Future<List<TimelineItemData>> getTimeline(String tourDetailsId) async {
     try {
       _setLoading(true);
@@ -307,6 +311,78 @@ class TourGuideProvider extends ChangeNotifier {
       _logger.e('Error getting timeline: $e');
       _setError('Có lỗi xảy ra khi lấy lịch trình chi tiết');
       return [];
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// [NEW] Get timeline with progress for specific tour slot (independent per slot)
+  Future<TimelineProgressResponse> getTourSlotTimelineWithProgress(String tourSlotId) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      final response = await _tourGuideApiService.getTourSlotTimeline(
+        tourSlotId,
+        false, // includeInactive
+        true,  // includeShopInfo
+      );
+
+      // Store the timeline progress response
+      _timelineProgressResponse = response;
+      _currentTourSlotId = tourSlotId; // Store current tour slot ID
+
+      // Convert timeline with progress to TimelineItem entities for backward compatibility
+      _timelineItems = response.timeline.map((item) => TimelineItem(
+        id: item.id,
+        checkInTime: item.checkInTime,
+        activity: item.activity,
+        sortOrder: item.sortOrder,
+        isCompleted: item.isCompleted,
+        completedAt: item.completedAt,
+        completionNotes: item.completionNotes,
+        specialtyShop: item.specialtyShop != null ? SpecialtyShop(
+          id: item.specialtyShop!.id,
+          shopName: item.specialtyShop!.shopName,
+          address: item.specialtyShop!.address ?? '',
+          description: item.specialtyShop!.description,
+        ) : null,
+      )).toList();
+
+      _logger.i('Tour slot timeline loaded successfully: ${response.timeline.length} items');
+      notifyListeners();
+      return response;
+    } catch (e) {
+      _logger.e('Error getting tour slot timeline: $e');
+      _setError('Có lỗi xảy ra khi lấy lịch trình tour slot');
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// [NEW] Complete timeline item for specific tour slot
+  Future<bool> completeTimelineItemForSlot(String tourSlotId, String timelineItemId, {String? notes}) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      final request = CompleteTimelineRequest(notes: notes);
+      final response = await _tourGuideApiService.completeTimelineItemForSlot(
+        tourSlotId,
+        timelineItemId,
+        request
+      );
+
+      // Reload timeline to update UI with completion status
+      await getTourSlotTimelineWithProgress(tourSlotId);
+
+      _logger.i('Timeline item completed successfully: ${response.message}');
+      return response.success;
+    } catch (e) {
+      _logger.e('Error completing timeline item for slot: $e');
+      _setError('Có lỗi xảy ra khi hoàn thành mục lịch trình');
+      return false;
     } finally {
       _setLoading(false);
     }
@@ -332,6 +408,7 @@ class TourGuideProvider extends ChangeNotifier {
   void clearTourData() {
     _tourBookings.clear();
     _timelineItems.clear();
+    _timelineProgressResponse = null; // NEW: Clear timeline progress
     notifyListeners();
   }
 

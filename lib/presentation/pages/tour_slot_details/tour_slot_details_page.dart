@@ -6,6 +6,7 @@ import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/error_widget.dart';
 import '../../../data/datasources/tour_guide_api_service.dart';
 import '../../../data/models/tour_slot_model.dart';
+import '../../../data/models/timeline_progress_models.dart';
 
 import '../checkin/checkin_page.dart';
 import '../timeline/timeline_progress_page.dart';
@@ -30,6 +31,7 @@ class TourSlotDetailsPage extends StatefulWidget {
 class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
   TourSlotDetailsResponse? slotDetails;
   List<TimelineItemData> timeline = [];
+  TimelineProgressResponse? timelineProgress; // NEW: Store timeline with progress
   bool isLoading = true;
   bool isLoadingTimeline = false;
   String? errorMessage;
@@ -55,10 +57,8 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
         isLoading = false;
       });
 
-      // Load timeline if we have tour details
-      if (details?.data.tourDetails?.id != null) {
-        _loadTimeline(details!.data.tourDetails!.id);
-      }
+      // Load timeline with progress for this specific tour slot
+      _loadTourSlotTimeline(widget.slotId);
     } catch (e) {
       setState(() {
         errorMessage = 'Không thể tải chi tiết lịch trình: $e';
@@ -67,6 +67,7 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
     }
   }
 
+  /// [OLD] Load timeline by tour details (shared timeline)
   Future<void> _loadTimeline(String tourDetailsId) async {
     setState(() {
       isLoadingTimeline = true;
@@ -87,6 +88,52 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Không thể tải lịch trình chi tiết: $e'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
+
+  /// [NEW] Load timeline with progress for specific tour slot (independent per slot)
+  Future<void> _loadTourSlotTimeline(String tourSlotId) async {
+    setState(() {
+      isLoadingTimeline = true;
+    });
+
+    try {
+      final provider = context.read<TourGuideProvider>();
+      final response = await provider.getTourSlotTimelineWithProgress(tourSlotId);
+
+      setState(() {
+        timelineProgress = response;
+        // Convert timeline with progress to old format for backward compatibility
+        timeline = response.timeline.map((item) => TimelineItemData(
+          id: item.id,
+          tourDetailsId: response.tourDetails.id, // Add required field
+          activity: item.activity,
+          checkInTime: item.checkInTime,
+          sortOrder: item.sortOrder,
+          specialtyShopId: item.specialtyShop?.id,
+          specialtyShop: item.specialtyShop != null ? SpecialtyShopData(
+            id: item.specialtyShop!.id,
+            shopName: item.specialtyShop!.shopName,
+            shopType: item.specialtyShop!.shopType,
+            location: item.specialtyShop!.address ?? '', // Use address as location
+            description: item.specialtyShop!.description,
+            isShopActive: item.specialtyShop!.isActive,
+          ) : null,
+          createdAt: DateTime.now().toIso8601String(), // Add required field
+          updatedAt: item.completedAt?.toIso8601String(),
+        )).toList();
+        isLoadingTimeline = false;
+      });
+    } catch (e) {
+      setState(() {
+        isLoadingTimeline = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Không thể tải lịch trình tour slot: $e'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -385,7 +432,10 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => TimelineProgressPage(tourId: widget.tourId),
+                          builder: (context) => TimelineProgressPage(
+                            tourId: widget.tourId,
+                            tourSlotId: widget.slotId, // Pass tour slot ID for per-slot timeline
+                          ),
                         ),
                       );
                     },

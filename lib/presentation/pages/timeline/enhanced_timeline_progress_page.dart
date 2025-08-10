@@ -57,6 +57,15 @@ class _EnhancedTimelineProgressPageState extends State<EnhancedTimelineProgressP
   }
 
   Future<void> _completeTimelineItem(TimelineWithProgressDto item) async {
+    // Check if timeline can be modified
+    final provider = context.read<EnhancedTourGuideProvider>();
+    final timelineProgress = provider.timelineProgress;
+
+    if (timelineProgress != null && !timelineProgress.canModifyProgress) {
+      _showErrorSnackBar('Chỉ có thể cập nhật timeline khi tour slot đang trong trạng thái "Đang thực hiện". Hiện tại chỉ có thể xem timeline.');
+      return;
+    }
+
     if (!item.canComplete) {
       _showErrorSnackBar('Timeline item này chưa thể hoàn thành');
       return;
@@ -98,6 +107,15 @@ class _EnhancedTimelineProgressPageState extends State<EnhancedTimelineProgressP
   }
 
   Future<void> _resetTimelineItem(TimelineWithProgressDto item) async {
+    // Check if timeline can be modified
+    final provider = context.read<EnhancedTourGuideProvider>();
+    final timelineProgress = provider.timelineProgress;
+
+    if (timelineProgress != null && !timelineProgress.canModifyProgress) {
+      _showErrorSnackBar('Chỉ có thể cập nhật timeline khi tour slot đang trong trạng thái "Đang thực hiện". Hiện tại chỉ có thể xem timeline.');
+      return;
+    }
+
     if (!item.isCompleted) {
       _showErrorSnackBar('Timeline item này chưa được hoàn thành');
       return;
@@ -310,6 +328,7 @@ class _EnhancedTimelineProgressPageState extends State<EnhancedTimelineProgressP
                 timelineItem: item,
                 onComplete: () => _completeTimelineItem(item),
                 onReset: () => _resetTimelineItem(item),
+                canModifyProgress: timelineProgress.canModifyProgress,
               );
             },
           ),

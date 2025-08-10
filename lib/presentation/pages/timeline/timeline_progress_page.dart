@@ -8,10 +8,12 @@ import '../../../domain/entities/timeline_item.dart';
 
 class TimelineProgressPage extends StatefulWidget {
   final String tourId;
-  
+  final String? tourSlotId; // NEW: Optional tour slot ID for per-slot timeline
+
   const TimelineProgressPage({
     super.key,
     required this.tourId,
+    this.tourSlotId, // NEW: For per-slot timeline tracking
   });
 
   @override
@@ -29,7 +31,13 @@ class _TimelineProgressPageState extends State<TimelineProgressPage> {
 
   Future<void> _loadTimeline() async {
     final tourGuideProvider = context.read<TourGuideProvider>();
-    await tourGuideProvider.getTourTimeline(widget.tourId);
+
+    // Use per-slot timeline if tourSlotId is provided, otherwise use old method
+    if (widget.tourSlotId != null) {
+      await tourGuideProvider.getTourSlotTimelineWithProgress(widget.tourSlotId!);
+    } else {
+      await tourGuideProvider.getTourTimeline(widget.tourId);
+    }
   }
 
   @override
@@ -185,6 +193,10 @@ class _TimelineProgressPageState extends State<TimelineProgressPage> {
 
   Widget _buildTimelineCard(TimelineItem item, TourGuideProvider provider, bool isNext, bool isLast) {
     final canComplete = !item.isCompleted && (_canCompleteItem(item, provider.timelineItems) || isNext);
+
+    // Check if timeline can be modified (only for tour slot mode)
+    final canModifyProgress = widget.tourSlotId == null ||
+        (provider.timelineProgressResponse?.canModifyProgress ?? true);
     
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -368,7 +380,7 @@ class _TimelineProgressPageState extends State<TimelineProgressPage> {
                       ),
                     ),
                   ],
-                  if (canComplete) ...[
+                  if (canComplete && canModifyProgress) ...[
                     const SizedBox(height: 12),
                     Row(
                       children: [
@@ -402,6 +414,36 @@ class _TimelineProgressPageState extends State<TimelineProgressPage> {
                           ),
                         ),
                       ],
+                    ),
+                  ] else if (canComplete && !canModifyProgress) ...[
+                    // Show read-only message when cannot modify
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.amber[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.amber[200]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.visibility,
+                            size: 16,
+                            color: Colors.amber[700],
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Chế độ chỉ xem - Cần tour slot ở trạng thái "Đang thực hiện" để cập nhật',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.amber[700],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ],
@@ -464,8 +506,25 @@ class _TimelineProgressPageState extends State<TimelineProgressPage> {
   }
 
   Future<void> _completeTimelineItem(TimelineItem item, TourGuideProvider provider) async {
-    final success = await provider.completeTimelineItem(item.id);
-    
+    // Check if timeline can be modified when using tour slot
+    if (widget.tourSlotId != null) {
+      final timelineProgress = provider.timelineProgressResponse;
+      if (timelineProgress != null && !timelineProgress.canModifyProgress) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Chỉ có thể cập nhật timeline khi tour slot đang trong trạng thái "Đang thực hiện". Hiện tại chỉ có thể xem timeline.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+
+    // Use new tour slot specific completion method if tourSlotId is available
+    final success = widget.tourSlotId != null
+        ? await provider.completeTimelineItemForSlot(widget.tourSlotId!, item.id)
+        : await provider.completeTimelineItem(item.id);
+
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -512,8 +571,25 @@ class _TimelineProgressPageState extends State<TimelineProgressPage> {
     );
 
     if (notes != null && notes.isNotEmpty) {
-      final success = await provider.completeTimelineItem(item.id, notes: notes);
-      
+      // Check if timeline can be modified when using tour slot
+      if (widget.tourSlotId != null) {
+        final timelineProgress = provider.timelineProgressResponse;
+        if (timelineProgress != null && !timelineProgress.canModifyProgress) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Chỉ có thể cập nhật timeline khi tour slot đang trong trạng thái "Đang thực hiện". Hiện tại chỉ có thể xem timeline.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      }
+
+      // Use new tour slot specific completion method if tourSlotId is available
+      final success = widget.tourSlotId != null
+          ? await provider.completeTimelineItemForSlot(widget.tourSlotId!, item.id, notes: notes)
+          : await provider.completeTimelineItem(item.id, notes: notes);
+
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
