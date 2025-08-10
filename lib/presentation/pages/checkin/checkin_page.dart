@@ -542,9 +542,30 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
             ),
             trailing: booking.isCheckedIn
                 ? const Icon(Icons.check_circle, color: Colors.green)
-                : ElevatedButton(
-                    onPressed: () => _handleManualCheckIn(booking),
-                    child: const Text('Check-in'),
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Manual check-in button (emergency)
+                      TextButton.icon(
+                        onPressed: () => _handleManualCheckIn(booking),
+                        icon: const Icon(Icons.edit, size: 16),
+                        label: const Text('Thủ công'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.orange,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // QR check-in button (primary)
+                      ElevatedButton.icon(
+                        onPressed: () => _startQRCheckInProcess(booking),
+                        icon: const Icon(Icons.qr_code_scanner, size: 16),
+                        label: const Text('Quét QR'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
           ),
         );
@@ -552,7 +573,127 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
     );
   }
 
-  /// Handle manual check-in
+  /// Start QR check-in process - opens QR scanner first
+  Future<void> _startQRCheckInProcess(TourBookingModel booking) async {
+    try {
+      // Show QR scanner dialog
+      final qrData = await _showQRScannerDialog(booking);
+
+      if (qrData != null && qrData.isNotEmpty) {
+        // Validate QR code matches this booking
+        if (_validateQRCode(qrData, booking)) {
+          // Show check-in confirmation dialog with override option
+          _showQRCheckInDialog(booking, qrData);
+        } else {
+          _showMessage('Mã QR không khớp với booking này', isError: true);
+        }
+      }
+    } catch (e) {
+      _showMessage('Lỗi khi quét QR: $e', isError: true);
+    }
+  }
+
+  /// Validate QR code matches booking
+  bool _validateQRCode(String qrData, TourBookingModel booking) {
+    // Simple validation - check if QR contains booking code or booking ID
+    final qrLower = qrData.toLowerCase();
+    final bookingCodeLower = booking.bookingCode.toLowerCase();
+    final bookingIdLower = booking.id.toLowerCase();
+
+    return qrLower.contains(bookingCodeLower) ||
+           qrLower.contains(bookingIdLower) ||
+           qrData == booking.bookingCode ||
+           qrData == booking.id;
+  }
+
+  /// Show QR scanner dialog
+  Future<String?> _showQRScannerDialog(TourBookingModel booking) async {
+    String qrInput = '';
+
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.qr_code_scanner, color: Colors.blue),
+            SizedBox(width: 8),
+            Text('Quét mã QR'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Khách hàng: ${booking.customerName ?? booking.contactName}'),
+            Text('Mã booking: ${booking.bookingCode}'),
+            const SizedBox(height: 16),
+            const Text(
+              'Vui lòng quét mã QR của khách hàng hoặc nhập thủ công:',
+              style: TextStyle(fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              decoration: const InputDecoration(
+                labelText: 'Mã QR',
+                hintText: 'Nhập mã QR hoặc mã booking...',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.qr_code),
+              ),
+              onChanged: (value) {
+                qrInput = value;
+              },
+              autofocus: true,
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                border: Border.all(color: Colors.blue[200]!),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info, color: Colors.blue[700], size: 20),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Mã QR phải chứa mã booking hoặc ID booking để xác thực',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              if (qrInput.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Vui lòng nhập mã QR'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+              Navigator.of(context).pop(qrInput.trim());
+            },
+            icon: const Icon(Icons.check),
+            label: const Text('Xác nhận'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Handle manual check-in (legacy - for backward compatibility)
   Future<void> _handleManualCheckIn(TourBookingModel booking) async {
     _showCheckInDialog(booking);
   }
