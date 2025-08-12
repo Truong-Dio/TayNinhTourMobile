@@ -10,6 +10,8 @@ import '../../data/models/timeline_item_model.dart';
 import '../../data/models/timeline_progress_models.dart';
 import '../../data/models/tour_slot_model.dart';
 import '../../data/models/tour_guide_slot_models.dart';
+import '../../data/models/individual_qr_models.dart';
+import '../../data/services/qr_parsing_service.dart';
 import '../../domain/entities/active_tour.dart';
 import '../../domain/entities/tour_booking.dart';
 import '../../domain/entities/timeline_item.dart';
@@ -41,6 +43,10 @@ class TourGuideProvider extends ChangeNotifier {
   List<TourGuideSlotModel> _tourSlots = [];
   TourSlotBookingsResponse? _currentSlotBookings;
   
+  // ✅ NEW: Individual guest state
+  List<TourBookingGuestModel> _currentSlotGuests = [];
+  String? _currentUserId;
+  
   // Getters
   bool get isLoading => _isLoading;
   List<ActiveTour> get activeTours => _activeTours;
@@ -55,6 +61,9 @@ class TourGuideProvider extends ChangeNotifier {
   List<TourGuideSlotModel> get tourSlots => _tourSlots;
   TourSlotBookingsResponse? get currentSlotBookings => _currentSlotBookings;
   List<TourBookingModel> get currentSlotBookingsList => _currentSlotBookings?.bookings ?? [];
+  
+  // ✅ NEW: Individual guest getters
+  List<TourBookingGuestModel> get currentSlotGuests => _currentSlotGuests;
   
   /// Get active tours for current tour guide
   Future<void> getMyActiveTours() async {
@@ -241,6 +250,161 @@ class TourGuideProvider extends ChangeNotifier {
     } finally {
       _setLoading(false);
     }
+  }
+
+  /// ✅ NEW: Parse and handle QR code (supports both individual and legacy)
+  Future<QRValidationResult> parseQRCode(String qrCodeData) async {
+    try {
+      // Parse QR using service
+      final result = QRParsingService.parseAndValidateQR(qrCodeData);
+      
+      if (!result.isValid) {
+        _logger.w('❌ Invalid QR: ${result.errorMessage}');
+        _setError(result.errorMessage ?? 'QR code không hợp lệ');
+      } else {
+        _logger.i('✅ Valid QR: ${result.qrType}');
+      }
+      
+      return result;
+    } catch (e) {
+      _logger.e('QR parsing error: $e');
+      return QRValidationResult(
+        isValid: false,
+        qrType: 'error',
+        errorMessage: 'Lỗi xử lý QR code: $e',
+      );
+    }
+  }
+
+  /// ✅ NEW: Check-in individual guest by QR code
+  Future<IndividualGuestCheckInResponse?> checkInIndividualGuest({
+    required String guestId,
+    required String tourSlotId,
+    String? notes,
+    String? qrCodeData,
+    bool overrideTime = false,
+    String overrideReason = '',
+  }) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      // Get current user ID (you may need to implement this)
+      final tourguideId = _currentUserId ?? 'current-tourguide-id'; // TODO: Get from auth
+      
+      final request = IndividualGuestCheckInRequest(
+        guestId: guestId,
+        tourSlotId: tourSlotId,
+        tourguideId: tourguideId,
+        checkInTime: DateTime.now().toIso8601String(),
+        notes: notes,
+        qrCodeData: qrCodeData,
+      );
+
+      final response = await _tourGuideApiService.checkInIndividualGuest(request);
+      
+      if (response.success) {
+        _logger.i('✅ Individual guest check-in successful: ${response.guestInfo?.guestName}');
+        
+        // Update local state
+        _updateGuestStatusInList(guestId, true);
+        
+        return response;
+      } else {
+        _setError(response.message);
+        return response;
+      }
+    } catch (e) {
+      _logger.e('❌ Individual guest check-in error: $e');
+      final errorMessage = _extractErrorMessage(e, 'Có lỗi xảy ra khi check-in khách hàng');
+      _setError(errorMessage);
+      return null;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// ✅ NEW: Get guest status by guest ID
+  Future<TourBookingGuestModel?> getGuestStatus(String guestId) async {
+    try {
+      final guestStatus = await _tourGuideApiService.getGuestStatus(guestId);
+      _logger.i('Got guest status: ${guestStatus.guestName}');
+      return guestStatus;
+    } catch (e) {
+      _logger.e('Error getting guest status: $e');
+      _setError('Không thể lấy thông tin khách hàng');
+      return null;
+    }
+  }
+
+  /// ✅ NEW: Get all guests for current tour slot
+  Future<void> getTourSlotGuests(String tourSlotId) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      final response = await _tourGuideApiService.getTourSlotGuests(tourSlotId);
+      _currentSlotGuests = response.guests;
+      _currentTourSlotId = tourSlotId;
+      
+      _logger.i('Loaded ${response.guests.length} guests for tour slot (Total: ${response.totalGuests}, Checked-in: ${response.checkedInGuests})');
+      notifyListeners();
+    } catch (e) {
+      _logger.e('Error loading tour slot guests: $e');
+      _setError('Không thể tải danh sách khách hàng');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// ✅ NEW: Validate tourguide permission
+  Future<bool> validateTourguidePermission(String tourSlotId) async {
+    try {
+      final hasPermission = await _tourGuideApiService.validateTourguidePermission(tourSlotId);
+      _logger.i('Tourguide permission for slot $tourSlotId: $hasPermission');
+      return hasPermission;
+    } catch (e) {
+      _logger.e('Error validating permission: $e');
+      return false;
+    }
+  }
+
+  /// ✅ NEW: Find guest by QR data in current slot
+  TourBookingGuestModel? findGuestByQRData(IndividualGuestQR qrData) {
+    try {
+      return _currentSlotGuests.firstWhere(
+        (guest) => guest.id == qrData.guestId,
+      );
+    } catch (e) {
+      _logger.w('Guest not found for QR: ${qrData.guestId}');
+      return null;
+    }
+  }
+
+  /// ✅ NEW: Update guest status in local list
+  void _updateGuestStatusInList(String guestId, bool isCheckedIn) {
+    final guestIndex = _currentSlotGuests.indexWhere((g) => g.id == guestId);
+    if (guestIndex >= 0) {
+      final updatedGuest = TourBookingGuestModel(
+        id: _currentSlotGuests[guestIndex].id,
+        guestName: _currentSlotGuests[guestIndex].guestName,
+        guestEmail: _currentSlotGuests[guestIndex].guestEmail,
+        guestPhone: _currentSlotGuests[guestIndex].guestPhone,
+        qrCodeData: _currentSlotGuests[guestIndex].qrCodeData,
+        isCheckedIn: isCheckedIn,
+        checkInTime: isCheckedIn ? DateTime.now().toIso8601String() : null,
+        checkInNotes: _currentSlotGuests[guestIndex].checkInNotes,
+        tourBookingId: _currentSlotGuests[guestIndex].tourBookingId,
+      );
+      
+      _currentSlotGuests[guestIndex] = updatedGuest;
+      notifyListeners();
+    }
+  }
+
+  /// ✅ NEW: Set current user ID (call this during login)
+  void setCurrentUserId(String userId) {
+    _currentUserId = userId;
   }
   
   /// Complete a timeline item

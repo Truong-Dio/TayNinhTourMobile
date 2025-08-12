@@ -9,6 +9,7 @@ import '../models/timeline_request_models.dart';
 import '../models/tour_invitation_model.dart';
 import '../models/tour_slot_model.dart';
 import '../models/tour_guide_slot_models.dart';
+import '../models/individual_qr_models.dart';
 import '../../core/constants/api_constants.dart';
 
 part 'tour_guide_api_service.g.dart';
@@ -65,6 +66,30 @@ abstract class TourGuideApiService {
   Future<void> checkInGuestWithOverride(
     @Path('bookingId') String bookingId,
     @Body() CheckInGuestWithOverrideRequest request,
+  );
+
+  /// ✅ NEW: Check-in individual guest by QR code
+  @POST('/TourGuide/check-in-guest')
+  Future<IndividualGuestCheckInResponse> checkInIndividualGuest(
+    @Body() IndividualGuestCheckInRequest request,
+  );
+
+  /// ✅ NEW: Get guest status by guest ID
+  @GET('/TourGuide/guest/{guestId}/status')
+  Future<TourBookingGuestModel> getGuestStatus(
+    @Path('guestId') String guestId,
+  );
+
+  /// ✅ NEW: Get all guests for a tour slot
+  @GET('/TourGuide/tour-slot/{tourSlotId}/guests')
+  Future<TourSlotGuestsResponse> getTourSlotGuests(
+    @Path('tourSlotId') String tourSlotId,
+  );
+
+  /// ✅ NEW: Validate tourguide permission for tour slot
+  @GET('/TourGuide/validate-permission/{tourSlotId}')
+  Future<bool> validateTourguidePermission(
+    @Path('tourSlotId') String tourSlotId,
   );
 
   /// Complete a timeline item (LEGACY - for backward compatibility)
