@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -6,6 +7,7 @@ import '../../widgets/common/loading_overlay.dart';
 import '../../widgets/checkin/tour_selection_widget.dart';
 import '../../widgets/checkin/guest_list_widget.dart';
 import '../../widgets/checkin/individual_guest_list_widget.dart';
+import '../../widgets/checkin/qr_scanner_widget.dart';
 import '../timeline/timeline_page.dart';
 import '../../../domain/entities/active_tour.dart';
 import '../../../data/models/tour_guide_slot_models.dart';
@@ -25,8 +27,8 @@ class CheckInPage extends StatefulWidget {
 
 class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin {
   late TabController _tabController;
-  ActiveTour? _selectedTour;
   TourGuideSlotModel? _selectedTourSlot;
+  TourBookingModel? _currentCheckInBooking;
   bool _isLoadingBookings = false;
   bool _isLoadingSlots = false;
   bool _isLoadingGuests = false;
@@ -135,7 +137,7 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
   /// [LEGACY] Select tour - kept for backward compatibility
   Future<void> _selectTour(ActiveTour tour) async {
     setState(() {
-      _selectedTour = tour;
+      // Tour selection no longer needed - using TourSlot instead
       _isLoadingBookings = true;
     });
 
@@ -145,6 +147,49 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
     setState(() {
       _isLoadingBookings = false;
     });
+  }
+
+  /// Open QR Scanner as a dialog
+  void _openQRScanner() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        child: Container(
+          height: MediaQuery.of(context).size.height * 0.8,
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Quét mã QR Check-in',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: QRScannerWidget(
+                  onQRScanned: (qrCodeData) async {
+                    Navigator.of(context).pop(); // Close scanner dialog
+                    await _handleQRScanned(qrCodeData);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   /// ✅ UPDATED: Handle QR code scanning with Individual QR support
@@ -292,7 +337,7 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
                               tourSlotId: _selectedTourSlot!.id,
                               onGuestTap: (guest) {
                                 if (!guest.isCheckedIn) {
-                                  _showManualIndividualCheckInDialog(guest);
+                                  _startIndividualGuestQRCheckIn(guest);
                                 } else {
                                   _showGuestDetailsDialog(guest);
                                 }
@@ -309,82 +354,198 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
           );
         },
       ),
+      // Add floating action button for QR scanning
+      floatingActionButton: _selectedTourSlot != null
+          ? FloatingActionButton.extended(
+              onPressed: _openQRScanner,
+              icon: const Icon(Icons.qr_code_scanner),
+              label: const Text('Quét QR'),
+              backgroundColor: Theme.of(context).primaryColor,
+            )
+          : null,
     );
   }
 
-  /// [NEW] Build tour slot header
+  /// [NEW] Build tour slot header - Adaptive version based on selected tab
   Widget _buildTourSlotHeader(TourGuideSlotModel tourSlot) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor.withOpacity(0.1),
-        border: Border(
-          bottom: BorderSide(
-            color: Theme.of(context).dividerColor,
-            width: 1,
-          ),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      tourSlot.tourDetails.title,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Ngày: ${tourSlot.tourDate}',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    Text(
-                      'Trạng thái: ${tourSlot.status}',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
+    return AnimatedBuilder(
+      animation: _tabController,
+      builder: (context, _) {
+        // Get current tab index
+        final currentTab = _tabController.index;
+        final isBookingTab = currentTab == 0;
+        
+        return Consumer<TourGuideProvider>(
+          builder: (context, provider, _) {
+            // Calculate statistics based on current tab
+            final bookings = provider.currentSlotBookingsList;
+            final guests = provider.currentSlotGuests;
+            
+            // Tab 1 (Bookings) statistics
+            final totalBookings = bookings.length;
+            final checkedInBookings = bookings.where((b) => b.isCheckedIn).length;
+            final totalGuestsInBookings = bookings.fold<int>(0, (sum, b) => sum + b.numberOfGuests);
+            
+            // Tab 2 (Individual Guests) statistics  
+            final totalIndividualGuests = guests.length;
+            final checkedInGuests = guests.where((g) => g.isCheckedIn).length;
+            
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor.withOpacity(0.1),
+                border: Border(
+                  bottom: BorderSide(
+                    color: Theme.of(context).dividerColor,
+                    width: 1,
+                  ),
                 ),
               ),
-              IconButton(
-                onPressed: () => _showTourSlotSelectionDialog(),
-                icon: const Icon(Icons.swap_horiz),
-                tooltip: 'Chọn slot khác',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              tourSlot.tourDetails.title,
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Ngày: ${tourSlot.tourDate} • ${tourSlot.status}',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => _showTourSlotSelectionDialog(),
+                        icon: const Icon(Icons.swap_horiz, size: 20),
+                        tooltip: 'Chọn slot khác',
+                        padding: const EdgeInsets.all(4),
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Adaptive statistics based on current tab
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: isBookingTab
+                        ? Row(
+                            key: const ValueKey('booking-stats'),
+                            children: [
+                              Expanded(
+                                child: _buildCompactStatCard(
+                                  'Booking',
+                                  '$totalBookings',
+                                  Icons.book,
+                                  Colors.blue,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildCompactStatCard(
+                                  'Check-in',
+                                  '$checkedInBookings',
+                                  Icons.check_circle,
+                                  Colors.green,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildCompactStatCard(
+                                  'Tổng khách',
+                                  '$totalGuestsInBookings',
+                                  Icons.group,
+                                  Colors.orange,
+                                ),
+                              ),
+                            ],
+                          )
+                        : Row(
+                            key: const ValueKey('guest-stats'),
+                            children: [
+                              Expanded(
+                                child: _buildCompactStatCard(
+                                  'Tổng khách',
+                                  '$totalIndividualGuests',
+                                  Icons.person,
+                                  Colors.blue,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildCompactStatCard(
+                                  'Đã check-in',
+                                  '$checkedInGuests',
+                                  Icons.check_circle,
+                                  Colors.green,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildCompactStatCard(
+                                  'Chưa check-in',
+                                  '${totalIndividualGuests - checkedInGuests}',
+                                  Icons.pending,
+                                  Colors.orange,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
+            );
+          },
+        );
+      },
+    );
+  }
+  
+  /// Compact stat card for header
+  Widget _buildCompactStatCard(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 4),
+          Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              _buildStatCard(
-                'Tổng booking',
-                '${tourSlot.bookingStats.totalBookings}',
-                Icons.people,
-                Colors.blue,
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
               ),
-              const SizedBox(width: 8),
-              _buildStatCard(
-                'Đã check-in',
-                '${tourSlot.bookingStats.checkedInCount}',
-                Icons.check_circle,
-                Colors.green,
-              ),
-              const SizedBox(width: 8),
-              _buildStatCard(
-                'Tổng khách',
-                '${tourSlot.bookingStats.totalGuests}',
-                Icons.person,
-                Colors.orange,
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: color.withOpacity(0.8),
+                ),
               ),
             ],
           ),
@@ -474,20 +635,31 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
   /// [NEW] Build tour slot selection view
   Widget _buildTourSlotSelectionView(TourGuideProvider tourGuideProvider) {
     if (tourGuideProvider.tourSlots.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      return RefreshIndicator(
+        onRefresh: _loadTourSlots,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           children: [
-            Icon(Icons.calendar_today, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              'Không có tour slot nào',
-              style: TextStyle(fontSize: 18, color: Colors.grey),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Bạn chưa được phân công tour slot nào',
-              style: TextStyle(color: Colors.grey),
+            SizedBox(
+              height: MediaQuery.of(context).size.height * 0.7,
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.calendar_today, size: 64, color: Colors.grey),
+                    SizedBox(height: 16),
+                    Text(
+                      'Không có tour slot nào',
+                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Bạn chưa được phân công tour slot nào',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -531,10 +703,13 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
 
         // Tour Slots List
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: tourGuideProvider.tourSlots.length,
-            itemBuilder: (context, index) {
+          child: RefreshIndicator(
+            onRefresh: _loadTourSlots,
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              physics: const AlwaysScrollableScrollPhysics(),
+              itemCount: tourGuideProvider.tourSlots.length,
+              itemBuilder: (context, index) {
               final slot = tourGuideProvider.tourSlots[index];
               final hasBookings = slot.bookingStats.totalBookings > 0;
 
@@ -577,6 +752,7 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
                 ),
               );
             },
+            ),
           ),
         ),
       ],
@@ -587,7 +763,7 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
   Widget _buildTourSelectionView(TourGuideProvider tourGuideProvider) {
     return TourSelectionWidget(
       tours: tourGuideProvider.activeTours,
-      selectedTour: _selectedTour,
+      selectedTour: null,
       onTourSelected: _selectTour,
     );
   }
@@ -597,101 +773,278 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
     final bookings = tourGuideProvider.currentSlotBookingsList;
 
     if (bookings.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      return RefreshIndicator(
+        onRefresh: () async {
+          if (_selectedTourSlot != null) {
+            await _selectTourSlot(_selectedTourSlot!);
+          }
+        },
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           children: [
-            Icon(Icons.people_outline, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              'Chưa có booking nào',
-              style: TextStyle(fontSize: 18, color: Colors.grey),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Tour slot này chưa có khách hàng đặt tour',
-              style: TextStyle(color: Colors.grey),
+            SizedBox(
+              height: MediaQuery.of(context).size.height * 0.5,
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.people_outline, size: 64, color: Colors.grey),
+                    SizedBox(height: 16),
+                    Text(
+                      'Chưa có booking nào',
+                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Tour slot này chưa có khách hàng đặt tour',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: bookings.length,
-      itemBuilder: (context, index) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        if (_selectedTourSlot != null) {
+          await _selectTourSlot(_selectedTourSlot!);
+        }
+      },
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: bookings.length,
+        itemBuilder: (context, index) {
         final booking = bookings[index];
         return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: booking.isCheckedIn ? Colors.green : Colors.orange,
-              child: Icon(
-                booking.isCheckedIn ? Icons.check : Icons.person,
-                color: Colors.white,
+          margin: const EdgeInsets.only(bottom: 8),
+          elevation: booking.isCheckedIn ? 1 : 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: InkWell(
+            onTap: booking.isCheckedIn 
+              ? null 
+              : () => _startQRCheckInProcess(booking),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
+              child: Row(
+                children: [
+                  // Compact status indicator
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: booking.isCheckedIn 
+                        ? Colors.green.withOpacity(0.1)
+                        : Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      booking.isCheckedIn ? Icons.check : Icons.person,
+                      color: booking.isCheckedIn ? Colors.green : Colors.orange,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  
+                  // Guest info - compressed
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Name and guest count in same line
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                booking.contactName ?? booking.customerName ?? 'Khách hàng',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: booking.isCheckedIn 
+                                    ? Colors.grey[600]
+                                    : Colors.black87,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                '${booking.numberOfGuests} khách',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[700],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        // Booking code - smaller
+                        Text(
+                          'Mã: ${booking.bookingCode}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Action area - compact
+                  if (booking.isCheckedIn)
+                    Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 24,
+                    )
+                  else
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Manual check-in icon button
+                        IconButton(
+                          onPressed: () => _handleManualCheckIn(booking),
+                          icon: const Icon(Icons.edit_note),
+                          iconSize: 20,
+                          padding: const EdgeInsets.all(8),
+                          constraints: const BoxConstraints(),
+                          color: Colors.grey[600],
+                          tooltip: 'Check-in thủ công',
+                        ),
+                        // QR scan button - primary
+                        Container(
+                          height: 32,
+                          child: ElevatedButton.icon(
+                            onPressed: () => _startQRCheckInProcess(booking),
+                            icon: const Icon(Icons.qr_code_scanner, size: 16),
+                            label: const Text('QR', style: TextStyle(fontSize: 13)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).primaryColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              elevation: 0,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
               ),
             ),
-            title: Text(booking.contactName ?? booking.customerName ?? 'Khách hàng'),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Mã booking: ${booking.bookingCode}'),
-                Text('Số khách: ${booking.numberOfGuests}'),
-                if (booking.isCheckedIn && booking.checkInTime != null)
-                  Text('Check-in: ${booking.checkInTime}'),
-              ],
-            ),
-            trailing: booking.isCheckedIn
-                ? const Icon(Icons.check_circle, color: Colors.green)
-                : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Manual check-in button (emergency)
-                      TextButton.icon(
-                        onPressed: () => _handleManualCheckIn(booking),
-                        icon: const Icon(Icons.edit, size: 16),
-                        label: const Text('Thủ công'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.orange,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // QR check-in button (primary)
-                      ElevatedButton.icon(
-                        onPressed: () => _startQRCheckInProcess(booking),
-                        icon: const Icon(Icons.qr_code_scanner, size: 16),
-                        label: const Text('Quét QR'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
           ),
         );
       },
+      ),
     );
   }
 
-  /// Start QR check-in process - opens QR scanner first
+  /// Start QR check-in process - opens camera scanner directly
   Future<void> _startQRCheckInProcess(TourBookingModel booking) async {
     try {
-      // Show QR scanner dialog
-      final qrData = await _showQRScannerDialog(booking);
-
-      if (qrData != null && qrData.isNotEmpty) {
-        // Validate QR code matches this booking
-        if (_validateQRCode(qrData, booking)) {
-          // Show check-in confirmation dialog with override option
-          _showQRCheckInDialog(booking, qrData);
-        } else {
-          _showMessage('Mã QR không khớp với booking này', isError: true);
-        }
-      }
+      // Store the current booking being checked in
+      setState(() {
+        _currentCheckInBooking = booking;
+      });
+      
+      // Open camera scanner directly
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Dialog(
+          child: Container(
+            height: MediaQuery.of(context).size.height * 0.8,
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Quét mã QR Check-in',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Booking: ${booking.bookingCode}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () {
+                        setState(() {
+                          _currentCheckInBooking = null;
+                        });
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: QRScannerWidget(
+                    onQRScanned: (qrCodeData) async {
+                      Navigator.of(context).pop(); // Close scanner dialog
+                      setState(() {
+                        _currentCheckInBooking = null;
+                      });
+                      
+                      // Validate and process QR code
+                      if (_validateQRCode(qrCodeData, booking)) {
+                        _showQRCheckInDialog(booking, qrCodeData);
+                      } else {
+                        _showMessage('Mã QR không khớp với booking này', isError: true);
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
     } catch (e) {
       _showMessage('Lỗi khi quét QR: $e', isError: true);
+      setState(() {
+        _currentCheckInBooking = null;
+      });
     }
   }
 
@@ -708,91 +1061,87 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
            qrData == booking.id;
   }
 
-  /// Show QR scanner dialog
-  Future<String?> _showQRScannerDialog(TourBookingModel booking) async {
-    String qrInput = '';
+  // Removed _showQRScannerDialog method - no longer needed as we open camera directly
 
-    return showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.qr_code_scanner, color: Colors.blue),
-            SizedBox(width: 8),
-            Text('Quét mã QR'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Khách hàng: ${booking.customerName ?? booking.contactName}'),
-            Text('Mã booking: ${booking.bookingCode}'),
-            const SizedBox(height: 16),
-            const Text(
-              'Vui lòng quét mã QR của khách hàng hoặc nhập thủ công:',
-              style: TextStyle(fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              decoration: const InputDecoration(
-                labelText: 'Mã QR',
-                hintText: 'Nhập mã QR hoặc mã booking...',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.qr_code),
-              ),
-              onChanged: (value) {
-                qrInput = value;
-              },
-              autofocus: true,
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue[50],
-                border: Border.all(color: Colors.blue[200]!),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info, color: Colors.blue[700], size: 20),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'Mã QR phải chứa mã booking hoặc ID booking để xác thực',
-                      style: TextStyle(fontSize: 12),
+  /// Start individual guest QR check-in - opens camera directly
+  Future<void> _startIndividualGuestQRCheckIn(TourBookingGuestModel guest) async {
+    try {
+      // Open camera scanner directly
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Dialog(
+          child: Container(
+            height: MediaQuery.of(context).size.height * 0.8,
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Quét mã QR của khách',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Khách: ${guest.guestName}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: QRScannerWidget(
+                    onQRScanned: (qrCodeData) async {
+                      Navigator.of(context).pop(); // Close scanner dialog
+                      
+                      // Parse and validate QR code
+                      final tourGuideProvider = context.read<TourGuideProvider>();
+                      final qrResult = await tourGuideProvider.parseQRCode(qrCodeData);
+                      
+                      if (!qrResult.isValid) {
+                        _showMessage(qrResult.errorMessage ?? 'QR code không hợp lệ', isError: true);
+                        return;
+                      }
+                      
+                      // Check if QR belongs to this guest
+                      if (qrResult.qrType == 'IndividualGuest' && 
+                          qrResult.individualGuestQR != null &&
+                          qrResult.individualGuestQR!.guestId == guest.id) {
+                        // Correct QR code - proceed with check-in
+                        _showIndividualGuestCheckInDialog(guest, qrResult.individualGuestQR!);
+                      } else {
+                        _showMessage('Mã QR không khớp với khách hàng ${guest.guestName}', isError: true);
+                      }
+                    },
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Hủy'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              if (qrInput.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Vui lòng nhập mã QR'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                return;
-              }
-              Navigator.of(context).pop(qrInput.trim());
-            },
-            icon: const Icon(Icons.check),
-            label: const Text('Xác nhận'),
-          ),
-        ],
-      ),
-    );
+      );
+    } catch (e) {
+      _showMessage('Lỗi khi quét QR: $e', isError: true);
+    }
   }
 
   /// Handle manual check-in (legacy - for backward compatibility)
@@ -1104,7 +1453,7 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
     final canStartTour = progressPercent >= 70; // 70% check-in required
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -1115,64 +1464,83 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
           ),
         ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Row(
         children: [
-          // Progress indicator
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          // Progress info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
                   children: [
-                    Text(
-                      '$checkedInGuests/$totalGuests đã check-in',
-                      style: Theme.of(context).textTheme.titleMedium,
+                    Icon(
+                      Icons.people,
+                      size: 16,
+                      color: Colors.grey[600],
                     ),
-                    const SizedBox(height: 4),
-                    LinearProgressIndicator(
-                      value: progressPercent / 100,
-                      backgroundColor: Colors.grey[300],
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        canStartTour ? Colors.green : Colors.orange,
+                    const SizedBox(width: 4),
+                    Text(
+                      '$checkedInGuests/$totalGuests',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: canStartTour ? Colors.green : Colors.orange,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '$progressPercent%',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 16),
-              Text(
-                '$progressPercent%',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: canStartTour ? Colors.green : Colors.orange,
-                  fontWeight: FontWeight.w600,
+                const SizedBox(height: 2),
+                LinearProgressIndicator(
+                  value: progressPercent / 100,
+                  backgroundColor: Colors.grey[300],
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    canStartTour ? Colors.green : Colors.orange,
+                  ),
+                  minHeight: 3,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-
-          const SizedBox(height: 16),
-
+          const SizedBox(width: 12),
           // Action button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: canStartTour ? () {
-                // ✅ NEW: Use TourSlot ID for timeline
-                if (_selectedTourSlot != null) {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => TimelinePage(tourId: _selectedTourSlot!.id),
-                    ),
-                  );
-                }
-              } : null,
-              icon: Icon(canStartTour ? Icons.play_arrow : Icons.hourglass_empty),
-              label: Text(canStartTour ? 'Bắt đầu tour' : 'Cần ít nhất 70% check-in'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                backgroundColor: canStartTour ? Colors.green : Colors.grey,
-              ),
+          ElevatedButton.icon(
+            onPressed: canStartTour ? () {
+              // ✅ NEW: Use TourSlot ID for timeline
+              if (_selectedTourSlot != null) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => TimelinePage(tourId: _selectedTourSlot!.id),
+                  ),
+                );
+              }
+            } : null,
+            icon: Icon(
+              canStartTour ? Icons.play_arrow : Icons.lock,
+              size: 18,
+            ),
+            label: Text(
+              canStartTour ? 'Bắt đầu' : '70% cần',
+              style: const TextStyle(fontSize: 13),
+            ),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              backgroundColor: canStartTour ? Colors.green : Colors.grey,
+              minimumSize: const Size(100, 36),
             ),
           ),
         ],
@@ -1537,11 +1905,14 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
     try {
       _setLoading(true);
 
+      // Convert qrData to proper JSON string
+      final qrCodeJsonString = jsonEncode(qrData.toJson());
+      
       final response = await tourGuideProvider.checkInIndividualGuest(
         guestId: guest.id,
         tourSlotId: _selectedTourSlot!.id,
         notes: notes,
-        qrCodeData: qrData.toJson().toString(),
+        qrCodeData: qrCodeJsonString,
         overrideTime: overrideTime,
         overrideReason: overrideReason,
       );

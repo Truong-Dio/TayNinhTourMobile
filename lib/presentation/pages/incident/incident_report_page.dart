@@ -52,6 +52,10 @@ class _IncidentReportPageState extends State<IncidentReportPage> {
     }
   }
 
+  Future<void> _refreshData() async {
+    await _loadActiveTours();
+  }
+
   Future<void> _pickImage(ImageSource source) async {
     try {
       final ImagePicker picker = ImagePicker();
@@ -170,9 +174,12 @@ class _IncidentReportPageState extends State<IncidentReportPage> {
         builder: (context, tourGuideProvider, child) {
           return LoadingOverlay(
             isLoading: tourGuideProvider.isLoading || _isSubmitting,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Form(
+            child: RefreshIndicator(
+              onRefresh: _refreshData,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -285,6 +292,7 @@ class _IncidentReportPageState extends State<IncidentReportPage> {
                       ),
                     ),
                   ],
+                ),
                 ),
               ),
             ),

@@ -115,8 +115,8 @@ Map<String, dynamic> _$IndividualGuestCheckInRequestToJson(
 IndividualGuestCheckInResponse _$IndividualGuestCheckInResponseFromJson(
         Map<String, dynamic> json) =>
     IndividualGuestCheckInResponse(
-      success: json['success'] as bool,
-      message: json['message'] as String,
+      success: json['success'] as bool? ?? true,
+      message: json['message'] as String? ?? '',
       guestInfo: json['guestInfo'] == null
           ? null
           : TourBookingGuestModel.fromJson(

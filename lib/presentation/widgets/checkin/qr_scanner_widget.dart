@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../../../domain/entities/active_tour.dart';
-
 class QRScannerWidget extends StatefulWidget {
   final Function(String) onQRScanned;
-  final ActiveTour? selectedTour;
 
   const QRScannerWidget({
     super.key,
     required this.onQRScanned,
-    required this.selectedTour,
   });
 
   @override
@@ -93,29 +89,6 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.selectedTour == null) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.tour,
-              size: 64,
-              color: Colors.grey,
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Vui lòng chọn tour trước',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
     if (!_hasPermission) {
       return Center(
         child: Column(
@@ -165,7 +138,7 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
                   const SizedBox(width: 12),
                   const Expanded(
                     child: Text(
-                      'Hướng camera về phía QR code của khách hàng để check-in',
+                      'Hướng camera về phía QR code để check-in',
                       style: TextStyle(fontSize: 14),
                     ),
                   ),

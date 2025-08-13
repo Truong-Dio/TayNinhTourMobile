@@ -69,7 +69,7 @@ abstract class TourGuideApiService {
   );
 
   /// ✅ NEW: Check-in individual guest by QR code
-  @POST('/TourGuide/check-in-guest')
+  @POST('/TourGuide/check-in-guest-qr')
   Future<IndividualGuestCheckInResponse> checkInIndividualGuest(
     @Body() IndividualGuestCheckInRequest request,
   );

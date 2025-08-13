@@ -70,6 +70,25 @@ class _TourDetailsPageState extends State<TourDetailsPage> {
     }
   }
 
+  Future<void> _refreshData() async {
+    try {
+      // Reload active tours to get fresh data
+      final provider = context.read<TourGuideProvider>();
+      await provider.getMyActiveTours();
+      _loadTourDetails();
+      await _loadTourSlots();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi khi làm mới dữ liệu: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (tour == null) {
@@ -98,12 +117,16 @@ class _TourDetailsPageState extends State<TourDetailsPage> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildTourInfoCard(),
-            _buildTourSlotsSection(),
-          ],
+      body: RefreshIndicator(
+        onRefresh: _refreshData,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            children: [
+              _buildTourInfoCard(),
+              _buildTourSlotsSection(),
+            ],
+          ),
         ),
       ),
     );

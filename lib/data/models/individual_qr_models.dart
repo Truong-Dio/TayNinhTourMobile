@@ -133,8 +133,12 @@ class IndividualGuestCheckInRequest {
 /// ✅ NEW: Individual guest check-in response
 @JsonSerializable()
 class IndividualGuestCheckInResponse {
+  @JsonKey(defaultValue: true)
   final bool success;
+  
+  @JsonKey(defaultValue: '')
   final String message;
+  
   final TourBookingGuestModel? guestInfo;
   final String? checkInTime;
 

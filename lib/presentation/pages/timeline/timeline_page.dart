@@ -50,6 +50,13 @@ class _TimelinePageState extends State<TimelinePage> {
     }
   }
 
+  Future<void> _refreshData() async {
+    await _loadActiveTours();
+    if (_selectedTour != null) {
+      await _selectTour(_selectedTour!);
+    }
+  }
+
   Future<void> _selectTour(ActiveTour tour) async {
     setState(() {
       _selectedTour = tour;
@@ -200,9 +207,12 @@ class _TimelinePageState extends State<TimelinePage> {
 
                 // Timeline Progress
                 Expanded(
-                  child: _selectedTour == null
-                      ? _buildTourSelectionView(tourGuideProvider)
-                      : _buildTimelineView(tourGuideProvider),
+                  child: RefreshIndicator(
+                    onRefresh: _refreshData,
+                    child: _selectedTour == null
+                        ? _buildTourSelectionView(tourGuideProvider)
+                        : _buildTimelineView(tourGuideProvider),
+                  ),
                 ),
 
                 // Bottom Action Bar
@@ -279,6 +289,29 @@ class _TimelinePageState extends State<TimelinePage> {
   }
 
   Widget _buildTourSelectionView(TourGuideProvider tourGuideProvider) {
+    if (tourGuideProvider.activeTours.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.6,
+            child: const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.timeline, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text(
+                    'Không có tour nào',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
     return TourSelectionTimelineWidget(
       tours: tourGuideProvider.activeTours,
       selectedTour: _selectedTour,

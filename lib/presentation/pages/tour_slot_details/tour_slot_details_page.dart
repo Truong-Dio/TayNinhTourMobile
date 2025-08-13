@@ -67,6 +67,29 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
     }
   }
 
+  Future<void> _refreshData() async {
+    try {
+      final provider = context.read<TourGuideProvider>();
+      final details = await provider.getTourSlotDetails(widget.slotId);
+
+      setState(() {
+        slotDetails = details;
+      });
+
+      // Reload timeline with progress
+      await _loadTourSlotTimeline(widget.slotId);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi khi làm mới dữ liệu: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   /// [OLD] Load timeline by tour details (shared timeline)
   Future<void> _loadTimeline(String tourDetailsId) async {
     setState(() {
@@ -209,13 +232,17 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildSlotInfoCard(),
-            _buildQuickActionsCard(),
-            _buildTimelineCard(),
-          ],
+      body: RefreshIndicator(
+        onRefresh: _refreshData,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            children: [
+              _buildSlotInfoCard(),
+              _buildQuickActionsCard(),
+              _buildTimelineCard(),
+            ],
+          ),
         ),
       ),
     );

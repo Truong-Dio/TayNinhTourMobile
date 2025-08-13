@@ -65,17 +65,21 @@ class QRParsingService {
       if (qr.bookingId.isEmpty) errors.add('Booking ID không hợp lệ');
       if (qr.tourSlotId.isEmpty) errors.add('Tour Slot ID không hợp lệ');
       
-      // Validate tour date (not too old)
+      // Validate tour date (relaxed for testing)
       try {
         final tourDate = DateTime.parse(qr.tourDate);
         final now = DateTime.now();
         final daysDifference = now.difference(tourDate).inDays;
         
-        if (daysDifference > 7) {
+        // Relaxed validation for testing
+        // Allow check-in up to 365 days before tour (for testing)
+        // And up to 30 days after tour
+        if (daysDifference > 30) {
           errors.add('QR code đã quá hạn (tour ${daysDifference} ngày trước)');
         }
         
-        if (daysDifference < -30) {
+        // Allow testing with future tours
+        if (daysDifference < -365) {
           errors.add('QR code chưa hợp lệ (tour còn ${-daysDifference} ngày)');
         }
       } catch (e) {

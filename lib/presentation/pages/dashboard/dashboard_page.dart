@@ -190,30 +190,38 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ],
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF667EEA).withOpacity(0.1),
-              Colors.white,
-              Colors.grey[50]!,
-            ],
-            stops: [0.0, 0.3, 1.0],
+      body: RefreshIndicator(
+        onRefresh: _loadData,
+        color: Color(0xFF667EEA),
+        backgroundColor: Colors.white,
+        displacement: 80,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF667EEA).withOpacity(0.1),
+                Colors.white,
+                Colors.grey[50]!,
+              ],
+              stops: [0.0, 0.3, 1.0],
+            ),
           ),
-        ),
-        child: Consumer2<AuthProvider, TourGuideProvider>(
-          builder: (context, authProvider, tourGuideProvider, child) {
-            // Show skeleton loading on initial load
-            if (tourGuideProvider.isLoading && tourGuideProvider.activeTours.isEmpty) {
-              return const DashboardSkeletonLoader();
-            }
+          child: Consumer2<AuthProvider, TourGuideProvider>(
+            builder: (context, authProvider, tourGuideProvider, child) {
+              // Show skeleton loading on initial load
+              if (tourGuideProvider.isLoading && tourGuideProvider.activeTours.isEmpty) {
+                return ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 120, 16, 100),
+                  children: [
+                    const DashboardSkeletonLoader(),
+                  ],
+                );
+              }
 
-            return RefreshIndicator(
-              onRefresh: _loadData,
-              color: Color(0xFF667EEA),
-              child: SingleChildScrollView(
+              return SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 120, 16, 100),
                 child: AnimationLimiter(
@@ -252,9 +260,9 @@ class _DashboardPageState extends State<DashboardPage> {
                     ),
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
       floatingActionButton: Container(

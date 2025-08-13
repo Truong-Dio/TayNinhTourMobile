@@ -316,7 +316,7 @@ class _TourGuideApiService implements TourGuideApiService {
     )
         .compose(
           _dio.options,
-          '/TourGuide/check-in-guest',
+          '/TourGuide/check-in-guest-qr',
           queryParameters: queryParameters,
           data: _data,
         )

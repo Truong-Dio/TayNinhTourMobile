@@ -97,6 +97,10 @@ class _GuestNotificationPageState extends State<GuestNotificationPage> {
     }
   }
 
+  Future<void> _refreshData() async {
+    await _loadActiveTours();
+  }
+
 
 
   Future<void> _sendNotification() async {
@@ -247,9 +251,12 @@ class _GuestNotificationPageState extends State<GuestNotificationPage> {
         builder: (context, tourGuideProvider, child) {
           return LoadingOverlay(
             isLoading: tourGuideProvider.isLoading || _isSending,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Form(
+            child: RefreshIndicator(
+              onRefresh: _refreshData,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -344,6 +351,7 @@ class _GuestNotificationPageState extends State<GuestNotificationPage> {
                       ),
                     ),
                   ],
+                ),
                 ),
               ),
             ),

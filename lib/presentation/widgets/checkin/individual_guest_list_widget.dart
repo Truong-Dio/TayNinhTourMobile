@@ -69,94 +69,14 @@ class _IndividualGuestListWidgetState extends State<IndividualGuestListWidget> {
       builder: (context, provider, child) {
         final guests = provider.currentSlotGuests;
         final filteredGuests = _getFilteredGuests(guests);
-        
-        final totalGuests = guests.length;
-        final checkedInCount = guests.where((g) => g.isCheckedIn).length;
-        final progressPercent = totalGuests > 0 
-            ? (checkedInCount / totalGuests * 100).round() 
-            : 0;
 
         return Column(
           children: [
-            // Statistics Header
+            // Compact Search and Filter Bar
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Theme.of(context).primaryColor,
-                    Theme.of(context).primaryColor.withOpacity(0.8),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildStatItem(
-                        'Tổng khách',
-                        totalGuests.toString(),
-                        Icons.people,
-                      ),
-                      _buildStatItem(
-                        'Đã check-in',
-                        checkedInCount.toString(),
-                        Icons.check_circle,
-                      ),
-                      _buildStatItem(
-                        'Chưa check-in',
-                        (totalGuests - checkedInCount).toString(),
-                        Icons.hourglass_empty,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  // Progress bar
-                  Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Tiến độ check-in',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 12,
-                            ),
-                          ),
-                          Text(
-                            '$progressPercent%',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      LinearProgressIndicator(
-                        value: progressPercent / 100,
-                        backgroundColor: Colors.white.withOpacity(0.3),
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          progressPercent >= 70 ? Colors.greenAccent : Colors.orangeAccent,
-                        ),
-                        minHeight: 6,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            // Search and Filter Bar
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
+                color: Colors.white,
                 border: Border(
                   bottom: BorderSide(
                     color: Colors.grey[300]!,
@@ -166,50 +86,55 @@ class _IndividualGuestListWidgetState extends State<IndividualGuestListWidget> {
               ),
               child: Column(
                 children: [
-                  // Search field
-                  TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Tìm kiếm theo tên, email, SĐT...',
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide.none,
+                  // Compact search field
+                  Container(
+                    height: 40,
+                    child: TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Tìm kiếm khách...',
+                        hintStyle: TextStyle(fontSize: 14),
+                        prefixIcon: const Icon(Icons.search, size: 20),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[100],
+                        contentPadding: const EdgeInsets.symmetric(vertical: 0),
                       ),
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value;
+                        });
+                      },
                     ),
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                      });
-                    },
                   ),
-                  const SizedBox(height: 12),
-                  // Filter chips
-                  Row(
-                    children: [
-                      _buildFilterChip(
-                        'Tất cả',
-                        'all',
-                        Colors.blue,
-                      ),
-                      const SizedBox(width: 8),
-                      _buildFilterChip(
-                        'Đã check-in',
-                        'checked-in',
-                        Colors.green,
-                      ),
-                      const SizedBox(width: 8),
-                      _buildFilterChip(
-                        'Chưa check-in',
-                        'not-checked-in',
-                        Colors.orange,
-                      ),
-                    ],
+                  const SizedBox(height: 8),
+                  // Filter chips in single row
+                  Container(
+                    height: 32,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        _buildFilterChip(
+                          'Tất cả',
+                          'all',
+                          Colors.blue,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildFilterChip(
+                          'Đã check-in',
+                          'checked-in',
+                          Colors.green,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildFilterChip(
+                          'Chưa check-in',
+                          'not-checked-in',
+                          Colors.orange,
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -222,7 +147,10 @@ class _IndividualGuestListWidgetState extends State<IndividualGuestListWidget> {
                   : RefreshIndicator(
                       onRefresh: _loadGuests,
                       child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         itemCount: filteredGuests.length,
                         itemBuilder: (context, index) {
                           final guest = filteredGuests[index];
@@ -264,7 +192,10 @@ class _IndividualGuestListWidgetState extends State<IndividualGuestListWidget> {
   Widget _buildFilterChip(String label, String value, Color color) {
     final isSelected = _filterStatus == value;
     return FilterChip(
-      label: Text(label),
+      label: Text(
+        label,
+        style: TextStyle(fontSize: 12),
+      ),
       selected: isSelected,
       onSelected: (selected) {
         setState(() {
@@ -277,11 +208,14 @@ class _IndividualGuestListWidgetState extends State<IndividualGuestListWidget> {
       labelStyle: TextStyle(
         color: isSelected ? color : Colors.grey[700],
         fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+        fontSize: 12,
       ),
       side: BorderSide(
         color: isSelected ? color : Colors.grey[300]!,
-        width: isSelected ? 2 : 1,
+        width: isSelected ? 1.5 : 1,
       ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
   }
 
@@ -289,178 +223,102 @@ class _IndividualGuestListWidgetState extends State<IndividualGuestListWidget> {
     final isCheckedIn = guest.isCheckedIn;
     
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: isCheckedIn ? 1 : 3,
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: isCheckedIn ? 1 : 2,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: isCheckedIn ? Colors.green.withOpacity(0.3) : Colors.transparent,
-          width: 1,
-        ),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: InkWell(
         onTap: () => widget.onGuestTap(guest),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
             children: [
-              // Avatar with status
-              Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: isCheckedIn 
-                        ? Colors.green.withOpacity(0.1)
-                        : Colors.orange.withOpacity(0.1),
-                    child: Text(
-                      guest.guestName.isNotEmpty 
-                          ? guest.guestName[0].toUpperCase()
-                          : '?',
-                      style: TextStyle(
-                        color: isCheckedIn ? Colors.green : Colors.orange,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
+              // Compact avatar with status
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: isCheckedIn 
+                      ? Colors.green.withOpacity(0.1)
+                      : Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: Text(
+                    guest.guestName.isNotEmpty 
+                        ? guest.guestName[0].toUpperCase()
+                        : '?',
+                    style: TextStyle(
+                      color: isCheckedIn ? Colors.green : Colors.orange,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
                     ),
                   ),
-                  if (isCheckedIn)
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.check_circle,
-                          color: Colors.green,
-                          size: 16,
-                        ),
-                      ),
-                    ),
-                ],
+                ),
               ),
               const SizedBox(width: 12),
               
-              // Guest info
+              // Guest info - compressed
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            guest.guestName,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                              decoration: isCheckedIn 
-                                  ? TextDecoration.lineThrough
-                                  : null,
-                              color: isCheckedIn 
-                                  ? Colors.grey
-                                  : Colors.black87,
-                            ),
-                          ),
-                        ),
-                        if (isCheckedIn)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.green.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Text(
-                              'Đã check-in',
-                              style: TextStyle(
-                                color: Colors.green,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.email_outlined,
-                          size: 14,
-                          color: Colors.grey[600],
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            guest.guestEmail,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[600],
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (guest.guestPhone != null) ...[
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.phone_outlined,
-                            size: 14,
-                            color: Colors.grey[600],
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            guest.guestPhone!,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
+                    // Name only
+                    Text(
+                      guest.guestName,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: isCheckedIn 
+                            ? Colors.grey[600]
+                            : Colors.black87,
                       ),
-                    ],
-                    if (isCheckedIn && guest.checkInTime != null) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.access_time,
-                            size: 14,
-                            color: Colors.green[600],
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Check-in: ${guest.checkInTime}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.green[600],
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    // Email in smaller text
+                    Text(
+                      guest.guestEmail,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
                       ),
-                    ],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    // Phone if available
+                    if (guest.guestPhone != null)
+                      Text(
+                        guest.guestPhone!,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey[500],
+                        ),
+                      ),
                   ],
                 ),
               ),
               
-              // Action button
-              if (!isCheckedIn)
+              // Action or status
+              if (isCheckedIn)
+                Icon(
+                  Icons.check_circle,
+                  color: Colors.green,
+                  size: 24,
+                )
+              else
                 IconButton(
                   onPressed: () => widget.onGuestTap(guest),
                   icon: const Icon(Icons.qr_code_scanner),
+                  iconSize: 20,
+                  padding: const EdgeInsets.all(8),
+                  constraints: const BoxConstraints(),
                   color: Theme.of(context).primaryColor,
-                  tooltip: 'Check-in khách',
+                  tooltip: 'Check-in',
                 ),
             ],
           ),
