@@ -74,6 +74,12 @@ abstract class TourGuideApiService {
     @Body() IndividualGuestCheckInRequest request,
   );
 
+  /// ✅ NEW: Check-in group by QR code
+  @POST('/TourGuide/check-in-group')
+  Future<CheckInGroupResponse> checkInGroupByQR(
+    @Body() CheckInGroupRequest request,
+  );
+
   /// ✅ NEW: Get guest status by guest ID
   @GET('/TourGuide/guest/{guestId}/status')
   Future<TourBookingGuestModel> getGuestStatus(
@@ -715,4 +721,91 @@ class CheckInGuestWithOverrideRequest {
   };
 }
 
+/// ✅ NEW: Check-in group request
+class CheckInGroupRequest {
+  final String qrCodeData;
+  final String? checkInNotes;
+  final String? location;
 
+  CheckInGroupRequest({
+    required this.qrCodeData,
+    this.checkInNotes,
+    this.location,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'QrCodeData': qrCodeData,  // ✅ FIX: Backend expects QrCodeData with capital Q
+    'CheckInNotes': checkInNotes,
+    'Location': location,
+  };
+}
+
+/// ✅ NEW: Check-in group response
+class CheckInGroupResponse {
+  final bool success;
+  final String message;
+  final String bookingId;
+  final String bookingCode;
+  final String? groupName;
+  final int totalGuests;
+  final int checkedInCount;
+  final int previouslyCheckedInCount;
+  final DateTime checkInTime;
+  final List<CheckedInGuestInfo> checkedInGuests;
+  final bool isCompleteCheckIn;
+
+  CheckInGroupResponse({
+    required this.success,
+    required this.message,
+    required this.bookingId,
+    required this.bookingCode,
+    this.groupName,
+    required this.totalGuests,
+    required this.checkedInCount,
+    required this.previouslyCheckedInCount,
+    required this.checkInTime,
+    required this.checkedInGuests,
+    required this.isCompleteCheckIn,
+  });
+
+  factory CheckInGroupResponse.fromJson(Map<String, dynamic> json) => CheckInGroupResponse(
+    success: json['success'] ?? false,
+    message: json['message'] ?? '',
+    bookingId: json['bookingId'] ?? '',
+    bookingCode: json['bookingCode'] ?? '',
+    groupName: json['groupName'],
+    totalGuests: json['totalGuests'] ?? 0,
+    checkedInCount: json['checkedInCount'] ?? 0,
+    previouslyCheckedInCount: json['previouslyCheckedInCount'] ?? 0,
+    checkInTime: DateTime.parse(json['checkInTime'] ?? DateTime.now().toIso8601String()),
+    checkedInGuests: (json['checkedInGuests'] as List<dynamic>?)
+        ?.map((e) => CheckedInGuestInfo.fromJson(e as Map<String, dynamic>))
+        .toList() ?? [],
+    isCompleteCheckIn: json['isCompleteCheckIn'] ?? false,
+  );
+}
+
+/// ✅ NEW: Checked-in guest info for group check-in
+class CheckedInGuestInfo {
+  final String guestId;
+  final String guestName;
+  final String? guestEmail;
+  final bool isGroupRepresentative;
+  final DateTime checkInTime;
+
+  CheckedInGuestInfo({
+    required this.guestId,
+    required this.guestName,
+    this.guestEmail,
+    required this.isGroupRepresentative,
+    required this.checkInTime,
+  });
+
+  factory CheckedInGuestInfo.fromJson(Map<String, dynamic> json) => CheckedInGuestInfo(
+    guestId: json['guestId'] ?? '',
+    guestName: json['guestName'] ?? '',
+    guestEmail: json['guestEmail'],
+    isGroupRepresentative: json['isGroupRepresentative'] ?? false,
+    checkInTime: DateTime.parse(json['checkInTime'] ?? DateTime.now().toIso8601String()),
+  );
+}
