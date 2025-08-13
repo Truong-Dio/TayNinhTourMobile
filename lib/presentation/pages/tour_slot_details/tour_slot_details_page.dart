@@ -43,6 +43,8 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
   }
 
   Future<void> _loadSlotDetails() async {
+    if (!mounted) return;
+    
     setState(() {
       isLoading = true;
       errorMessage = null;
@@ -52,18 +54,22 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
       final provider = context.read<TourGuideProvider>();
       final details = await provider.getTourSlotDetails(widget.slotId);
 
-      setState(() {
-        slotDetails = details;
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          slotDetails = details;
+          isLoading = false;
+        });
 
-      // Load timeline with progress for this specific tour slot
-      _loadTourSlotTimeline(widget.slotId);
+        // Load timeline with progress for this specific tour slot
+        await _loadTourSlotTimeline(widget.slotId);
+      }
     } catch (e) {
-      setState(() {
-        errorMessage = 'Không thể tải chi tiết lịch trình: $e';
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          errorMessage = 'Không thể tải chi tiết lịch trình: $e';
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -92,6 +98,8 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
 
   /// [OLD] Load timeline by tour details (shared timeline)
   Future<void> _loadTimeline(String tourDetailsId) async {
+    if (!mounted) return;
+    
     setState(() {
       isLoadingTimeline = true;
     });
@@ -100,25 +108,31 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
       final provider = context.read<TourGuideProvider>();
       final timelineItems = await provider.getTimeline(tourDetailsId);
 
-      setState(() {
-        timeline = timelineItems;
-        isLoadingTimeline = false;
-      });
+      if (mounted) {
+        setState(() {
+          timeline = timelineItems;
+          isLoadingTimeline = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        isLoadingTimeline = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Không thể tải lịch trình chi tiết: $e'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      if (mounted) {
+        setState(() {
+          isLoadingTimeline = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Không thể tải lịch trình chi tiết: $e'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
     }
   }
 
   /// [NEW] Load timeline with progress for specific tour slot (independent per slot)
   Future<void> _loadTourSlotTimeline(String tourSlotId) async {
+    if (!mounted) return;
+    
     setState(() {
       isLoadingTimeline = true;
     });
@@ -127,10 +141,11 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
       final provider = context.read<TourGuideProvider>();
       final response = await provider.getTourSlotTimelineWithProgress(tourSlotId);
 
-      setState(() {
-        timelineProgress = response;
-        // Convert timeline with progress to old format for backward compatibility
-        timeline = response.timeline.map((item) => TimelineItemData(
+      if (mounted) {
+        setState(() {
+          timelineProgress = response;
+          // Convert timeline with progress to old format for backward compatibility
+          timeline = response.timeline.map((item) => TimelineItemData(
           id: item.id,
           tourDetailsId: response.tourDetails.id, // Add required field
           activity: item.activity,
@@ -150,16 +165,19 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
         )).toList();
         isLoadingTimeline = false;
       });
+      }
     } catch (e) {
-      setState(() {
-        isLoadingTimeline = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Không thể tải lịch trình tour slot: $e'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      if (mounted) {
+        setState(() {
+          isLoadingTimeline = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Không thể tải lịch trình tour slot: $e'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
     }
   }
 

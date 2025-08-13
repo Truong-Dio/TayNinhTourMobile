@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 import 'package:dio/dio.dart';
@@ -11,6 +12,7 @@ import '../../data/models/timeline_progress_models.dart';
 import '../../data/models/tour_slot_model.dart';
 import '../../data/models/tour_guide_slot_models.dart';
 import '../../data/models/individual_qr_models.dart';
+import '../../data/models/group_booking_model.dart';
 import '../../data/services/qr_parsing_service.dart';
 import '../../domain/entities/active_tour.dart';
 import '../../domain/entities/tour_booking.dart';
@@ -378,6 +380,116 @@ class TourGuideProvider extends ChangeNotifier {
     } catch (e) {
       _logger.w('Guest not found for QR: ${qrData.guestId}');
       return null;
+    }
+  }
+
+  /// ✅ NEW: Find booking by booking ID in current slot
+  TourBookingModel? findBookingById(String bookingId) {
+    if (_currentSlotBookings == null) return null;
+
+    try {
+      return _currentSlotBookings!.bookings.firstWhere(
+        (booking) => booking.id == bookingId,
+      );
+    } catch (e) {
+      _logger.w('Booking not found for ID: $bookingId');
+      return null;
+    }
+  }
+
+  /// ✅ NEW: Check-in group by QR code
+  Future<bool> checkInGroupByQR({
+    required String qrCodeData,
+    String? notes,
+  }) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      // Parse QR data to get booking ID
+      final qrJson = jsonDecode(qrCodeData);
+      final bookingId = qrJson['bookingId'] as String;
+
+      // Call API to check-in group
+      final request = CheckInGroupRequest(
+        qrCodeData: qrCodeData,
+        checkInNotes: notes,
+      );
+
+      final response = await _tourGuideApiService.checkInGroupByQR(request);
+      
+      if (response != null && response.success) {
+        _logger.i('✅ Group check-in successful: ${response.checkedInCount} guests checked in');
+        
+        // Reload bookings to update UI
+        if (_currentTourSlotId != null) {
+          await getTourSlotBookings(_currentTourSlotId!);
+        }
+        
+        return true;
+      } else {
+        _setError(response?.message ?? 'Check-in nhóm thất bại');
+        return false;
+      }
+    } catch (e) {
+      _logger.e('❌ Group check-in error: $e');
+      final errorMessage = _extractErrorMessage(e, 'Có lỗi xảy ra khi check-in nhóm');
+      _setError(errorMessage);
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// ✅ NEW: Check-in group with time override
+  Future<bool> checkInGroupWithOverride({
+    required String qrCodeData,
+    String? notes,
+    required bool overrideTimeRestriction,
+    required String overrideReason,
+  }) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      // Parse QR data to get booking ID
+      final qrJson = jsonDecode(qrCodeData);
+      final bookingId = qrJson['bookingId'] as String;
+
+      // Prepare notes with override reason
+      final checkInNotes = notes ?? '';
+      final fullNotes = overrideTimeRestriction 
+        ? '$checkInNotes\n[OVERRIDE] Lý do: $overrideReason'
+        : checkInNotes;
+
+      // Call API to check-in group with override
+      final request = CheckInGroupRequest(
+        qrCodeData: qrCodeData,
+        checkInNotes: fullNotes,
+      );
+
+      final response = await _tourGuideApiService.checkInGroupByQR(request);
+      
+      if (response != null && response.success) {
+        _logger.i('✅ Group check-in with override successful: ${response.checkedInCount} guests checked in');
+        
+        // Reload bookings to update UI
+        if (_currentTourSlotId != null) {
+          await getTourSlotBookings(_currentTourSlotId!);
+        }
+        
+        return true;
+      } else {
+        _setError(response?.message ?? 'Check-in nhóm thất bại');
+        return false;
+      }
+    } catch (e) {
+      _logger.e('❌ Group check-in with override error: $e');
+      final errorMessage = _extractErrorMessage(e, 'Có lỗi xảy ra khi check-in nhóm');
+      _setError(errorMessage);
+      return false;
+    } finally {
+      _setLoading(false);
     }
   }
 
