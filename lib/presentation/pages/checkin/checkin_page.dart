@@ -213,6 +213,8 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
       // Handle based on QR type
       if (qrResult.qrType == 'IndividualGuest') {
         await _handleIndividualGuestQR(qrResult.individualGuestQR!);
+      } else if (qrResult.qrType == 'GroupBooking') {
+        await _handleGroupBookingQR(qrResult.groupBookingQR!);
       } else {
         // Legacy handling
         await _handleLegacyBookingQR(qrResult.legacyBookingCode!);
@@ -246,6 +248,33 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
 
     // Show individual guest check-in dialog
     _showIndividualGuestCheckInDialog(guest, qrData);
+  }
+
+  /// ✅ NEW: Handle group booking QR code
+  Future<void> _handleGroupBookingQR(GroupBookingQR qrData) async {
+    final tourGuideProvider = context.read<TourGuideProvider>();
+
+    // Validate tour slot matches
+    if (qrData.tourSlotId != _selectedTourSlot!.id) {
+      _showMessage('QR code nhóm không thuộc tour slot đang chọn', isError: true);
+      return;
+    }
+
+    // Check if booking exists in current slot
+    final booking = tourGuideProvider.findBookingById(qrData.bookingId);
+    if (booking == null) {
+      _showMessage('Không tìm thấy booking nhóm ${qrData.groupName ?? qrData.bookingCode} trong tour slot này', isError: true);
+      return;
+    }
+
+    // Check if already checked in
+    if (booking.isCheckedIn) {
+      _showMessage('Nhóm ${qrData.groupName ?? "này"} đã được check-in trước đó', isError: true);
+      return;
+    }
+
+    // Show group check-in dialog
+    _showGroupCheckInDialog(booking, qrData);
   }
 
   /// ✅ NEW: Handle legacy booking QR code (backward compatibility)
@@ -1026,12 +1055,9 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
                         _currentCheckInBooking = null;
                       });
                       
-                      // Validate and process QR code
-                      if (_validateQRCode(qrCodeData, booking)) {
-                        _showQRCheckInDialog(booking, qrCodeData);
-                      } else {
-                        _showMessage('Mã QR không khớp với booking này', isError: true);
-                      }
+                      // ✅ FIX: Handle QR directly without pre-validation
+                      // Let _handleQRScanned determine the QR type and process accordingly
+                      await _handleQRScanned(qrCodeData);
                     },
                   ),
                 ),
@@ -1263,6 +1289,229 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
     );
   }
 
+  /// ✅ NEW: Show group check-in dialog
+  void _showGroupCheckInDialog(TourBookingModel booking, GroupBookingQR qrData) {
+    bool overrideTime = false;
+    String overrideReason = '';
+    String notes = '';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: Colors.indigo,
+                radius: 20,
+                child: const Icon(Icons.groups, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text('Check-in Nhóm'),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Group Information Card
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.indigo[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.indigo[200]!),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.groups, size: 20, color: Colors.indigo),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              qrData.groupName ?? 'Nhóm ${booking.bookingCode}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (qrData.groupDescription != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          qrData.groupDescription!,
+                          style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                        ),
+                      ],
+                      const Divider(),
+                      Row(
+                        children: [
+                          const Icon(Icons.person, size: 16, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Text('Đại diện: ${qrData.contactName ?? booking.contactName}'),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.confirmation_number, size: 16, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Text('Mã booking: ${booking.bookingCode}'),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.people, size: 16, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Số lượng: ${qrData.numberOfGuests} khách',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Check-in Notes
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Ghi chú check-in (tùy chọn)',
+                    hintText: 'Nhập ghi chú về nhóm này...',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.note),
+                  ),
+                  maxLines: 2,
+                  onChanged: (value) {
+                    notes = value;
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                // Override time option
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Checkbox(
+                        value: overrideTime,
+                        onChanged: (value) {
+                          setState(() {
+                            overrideTime = value ?? false;
+                            if (!overrideTime) {
+                              overrideReason = '';
+                            }
+                          });
+                        },
+                      ),
+                      const Expanded(
+                        child: Text(
+                          'Check-in sớm (bỏ qua kiểm tra thời gian)',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Override reason input
+                if (overrideTime) ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    decoration: const InputDecoration(
+                      labelText: 'Lý do check-in sớm *',
+                      hintText: 'Nhập lý do...',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onChanged: (value) {
+                      overrideReason = value;
+                    },
+                  ),
+                ],
+
+                const SizedBox(height: 16),
+
+                // Warning message
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.amber[300]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.amber[800], size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Tất cả ${qrData.numberOfGuests} khách trong nhóm sẽ được check-in cùng lúc',
+                          style: TextStyle(color: Colors.amber[900], fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.check_circle),
+              onPressed: () async {
+                if (overrideTime && overrideReason.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Vui lòng nhập lý do check-in sớm'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                Navigator.of(context).pop();
+                
+                // Perform group check-in
+                await _performGroupCheckIn(
+                  booking, 
+                  qrData,
+                  notes: notes,
+                  overrideTime: overrideTime,
+                  overrideReason: overrideReason,
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.indigo,
+              ),
+              label: Text(overrideTime ? 'Check-in sớm cả nhóm' : 'Check-in cả nhóm'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Show check-in dialog with override option
   void _showCheckInDialog(TourBookingModel booking) {
     bool overrideTime = false;
@@ -1408,6 +1657,130 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
       }
     } else {
       _showMessage(tourGuideProvider.errorMessage ?? 'Check-in thất bại', isError: true);
+    }
+  }
+
+  /// ✅ NEW: Perform group check-in
+  Future<void> _performGroupCheckIn(
+    TourBookingModel booking,
+    GroupBookingQR qrData, {
+    String notes = '',
+    bool overrideTime = false,
+    String overrideReason = '',
+  }) async {
+    final tourGuideProvider = context.read<TourGuideProvider>();
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Đang check-in nhóm...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      bool success;
+      if (overrideTime) {
+        success = await tourGuideProvider.checkInGroupWithOverride(
+          qrCodeData: jsonEncode(qrData.toJson()),
+          notes: notes.isNotEmpty ? notes : 'Check-in nhóm bằng QR code',
+          overrideTimeRestriction: true,
+          overrideReason: overrideReason,
+        );
+      } else {
+        success = await tourGuideProvider.checkInGroupByQR(
+          qrCodeData: jsonEncode(qrData.toJson()),
+          notes: notes.isNotEmpty ? notes : 'Check-in nhóm bằng QR code',
+        );
+      }
+
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      if (success) {
+        final message = overrideTime
+            ? 'Check-in sớm thành công cho nhóm ${qrData.groupName ?? booking.bookingCode} (${qrData.numberOfGuests} khách)'
+            : 'Check-in thành công cho nhóm ${qrData.groupName ?? booking.bookingCode} (${qrData.numberOfGuests} khách)';
+        
+        _showMessage(message);
+        
+        // Show success dialog with details
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 28),
+                const SizedBox(width: 12),
+                const Text('Check-in Thành Công'),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Nhóm: ${qrData.groupName ?? booking.bookingCode}'),
+                Text('Số lượng: ${qrData.numberOfGuests} khách'),
+                if (notes.isNotEmpty) Text('Ghi chú: $notes'),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green[50],
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.green[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.green[700], size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Tất cả ${qrData.numberOfGuests} khách đã được check-in',
+                          style: TextStyle(color: Colors.green[800], fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+
+        // Reload slot bookings to update UI
+        if (_selectedTourSlot != null) {
+          await tourGuideProvider.getTourSlotBookings(_selectedTourSlot!.id);
+        }
+      } else {
+        _showMessage(
+          tourGuideProvider.errorMessage ?? 'Check-in nhóm thất bại',
+          isError: true,
+        );
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      Navigator.of(context).pop();
+      _showMessage('Lỗi khi check-in nhóm: $e', isError: true);
     }
   }
 

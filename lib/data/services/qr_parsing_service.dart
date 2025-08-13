@@ -12,6 +12,11 @@ class QRParsingService {
       // Try to parse as JSON first (Individual QR)
       final Map<String, dynamic> qrData = jsonDecode(qrString);
       
+      // Check if it's Group Booking QR
+      if (_isGroupBookingQR(qrData)) {
+        return _validateGroupBookingQR(qrData);
+      }
+      
       // Check if it's Individual Guest QR
       if (_isIndividualGuestQR(qrData)) {
         return _validateIndividualGuestQR(qrData);
@@ -32,6 +37,16 @@ class QRParsingService {
       // Not JSON, try as plain text (legacy booking code)
       return _validatePlainTextQR(qrString);
     }
+  }
+
+  /// Check if QR data is Group Booking format
+  static bool _isGroupBookingQR(Map<String, dynamic> data) {
+    return data.containsKey('qrType') && 
+           data['qrType'] == 'GroupBooking' &&
+           data.containsKey('version') &&
+           data['version'] == '1.0' &&
+           data.containsKey('bookingType') &&
+           data['bookingType'] == 'GroupRepresentative';
   }
 
   /// Check if QR data is Individual Guest format
@@ -112,6 +127,64 @@ class QRParsingService {
     }
   }
 
+  /// Validate Group Booking QR
+  static QRValidationResult _validateGroupBookingQR(Map<String, dynamic> data) {
+    try {
+      final qr = GroupBookingQR.fromJson(data);
+      
+      // Additional validations
+      final errors = <String>[];
+      
+      // Validate required fields
+      if (qr.bookingId.isEmpty) errors.add('Booking ID không hợp lệ');
+      if (qr.bookingCode.isEmpty) errors.add('Booking Code không hợp lệ');
+      if (qr.numberOfGuests <= 0) errors.add('Số lượng khách không hợp lệ');
+      if (qr.tourSlotId?.isEmpty ?? true) errors.add('Tour Slot ID không hợp lệ');
+      
+      // Validate tour date (relaxed for testing)
+      try {
+        final tourDate = DateTime.parse(qr.tourDate);
+        final now = DateTime.now();
+        final daysDifference = now.difference(tourDate).inDays;
+        
+        // Relaxed validation for testing
+        if (daysDifference > 30) {
+          errors.add('QR code đã quá hạn (tour ${daysDifference} ngày trước)');
+        }
+        
+        if (daysDifference < -365) {
+          errors.add('QR code chưa hợp lệ (tour còn ${-daysDifference} ngày)');
+        }
+      } catch (e) {
+        errors.add('Ngày tour không hợp lệ');
+      }
+      
+      if (errors.isNotEmpty) {
+        return QRValidationResult(
+          isValid: false,
+          qrType: 'GroupBooking',
+          errorMessage: errors.join(', '),
+        );
+      }
+      
+      _logger.i('✅ Valid Group Booking QR: ${qr.groupName ?? "Nhóm"} (${qr.bookingCode})');
+      
+      return QRValidationResult(
+        isValid: true,
+        qrType: 'GroupBooking',
+        groupBookingQR: qr,
+      );
+      
+    } catch (e) {
+      _logger.e('❌ Group Booking QR parse error: $e');
+      return QRValidationResult(
+        isValid: false,
+        qrType: 'GroupBooking',
+        errorMessage: 'QR data không hợp lệ: $e',
+      );
+    }
+  }
+
   /// Validate legacy QR format
   static QRValidationResult _validateLegacyQR(Map<String, dynamic> data) {
     try {
@@ -184,6 +257,10 @@ class QRParsingService {
         final qr = result.individualGuestQR!;
         return 'QR hợp lệ: ${qr.guestName}\nBooking: ${qr.bookingCode}';
         
+      case 'GroupBooking':
+        final qr = result.groupBookingQR!;
+        return 'QR nhóm hợp lệ: ${qr.groupName ?? "Nhóm"}\nBooking: ${qr.bookingCode}\nSố khách: ${qr.numberOfGuests}';
+        
       case 'legacy':
       case 'plain':
         return 'QR hợp lệ: ${result.legacyBookingCode}';
@@ -198,6 +275,8 @@ class QRParsingService {
     switch (qrType) {
       case 'IndividualGuest':
         return 'QR Khách hàng cá nhân';
+      case 'GroupBooking':
+        return 'QR Nhóm đại diện';
       case 'legacy':
         return 'QR Booking cũ';
       case 'plain':
