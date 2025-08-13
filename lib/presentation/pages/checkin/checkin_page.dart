@@ -228,10 +228,28 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
   Future<void> _handleIndividualGuestQR(IndividualGuestQR qrData) async {
     final tourGuideProvider = context.read<TourGuideProvider>();
 
-    // Validate tour slot matches
-    if (qrData.tourSlotId != _selectedTourSlot!.id) {
-      _showMessage('QR code không thuộc tour slot đang chọn', isError: true);
-      return;
+    // Check if QR belongs to current slot
+    if (_selectedTourSlot == null || qrData.tourSlotId != _selectedTourSlot!.id) {
+      // Try to auto-switch to the correct tour slot
+      final targetSlot = tourGuideProvider.tourSlots
+          .where((slot) => slot.id == qrData.tourSlotId)
+          .firstOrNull;
+      
+      if (targetSlot != null) {
+        // Auto-switch to correct slot
+        _showMessage('Đang chuyển đến tour slot ${targetSlot.tourDetails.title}...', isError: false);
+        await _selectTourSlot(targetSlot);
+        
+        // Re-validate after switching
+        if (_selectedTourSlot?.id != qrData.tourSlotId) {
+          _showMessage('Không thể chuyển đến tour slot phù hợp', isError: true);
+          return;
+        }
+      } else {
+        // Tour slot not found in HDV's assigned slots
+        _showMessage('QR code không thuộc tour slot được phân công cho bạn', isError: true);
+        return;
+      }
     }
 
     // Check if guest exists in current slot
@@ -254,10 +272,28 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
   Future<void> _handleGroupBookingQR(GroupBookingQR qrData) async {
     final tourGuideProvider = context.read<TourGuideProvider>();
 
-    // Validate tour slot matches
-    if (qrData.tourSlotId != _selectedTourSlot!.id) {
-      _showMessage('QR code nhóm không thuộc tour slot đang chọn', isError: true);
-      return;
+    // Check if QR belongs to current slot
+    if (_selectedTourSlot == null || qrData.tourSlotId != _selectedTourSlot!.id) {
+      // Try to auto-switch to the correct tour slot
+      final targetSlot = tourGuideProvider.tourSlots
+          .where((slot) => slot.id == qrData.tourSlotId)
+          .firstOrNull;
+      
+      if (targetSlot != null) {
+        // Auto-switch to correct slot
+        _showMessage('Đang chuyển đến tour slot ${targetSlot.tourDetails.title}...', isError: false);
+        await _selectTourSlot(targetSlot);
+        
+        // Re-validate after switching
+        if (_selectedTourSlot?.id != qrData.tourSlotId) {
+          _showMessage('Không thể chuyển đến tour slot phù hợp', isError: true);
+          return;
+        }
+      } else {
+        // Tour slot not found in HDV's assigned slots
+        _showMessage('QR code không thuộc tour slot được phân công cho bạn', isError: true);
+        return;
+      }
     }
 
     // Check if booking exists in current slot
