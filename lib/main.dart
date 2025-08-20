@@ -7,10 +7,14 @@ import 'core/theme/app_theme.dart';
 import 'core/network/dio_client.dart';
 import 'data/datasources/auth_api_service.dart';
 import 'data/datasources/tour_guide_api_service.dart';
+import 'data/datasources/user_api_service.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/tour_guide_provider.dart';
+import 'presentation/providers/user_provider.dart';
+
 import 'presentation/pages/auth/login_page.dart';
 import 'presentation/pages/dashboard/dashboard_page.dart';
+import 'presentation/pages/user/user_main_page.dart';
 import 'core/constants/app_constants.dart';
 import 'core/constants/api_constants.dart';
 
@@ -31,12 +35,17 @@ void main() async {
     dioClient.dio,
     baseUrl: ApiConstants.baseUrl,
   );
+  final userApiService = UserApiService(
+    dioClient.dio,
+    baseUrl: ApiConstants.baseUrl,
+  );
   
   runApp(TayNinhTourApp(
     storage: storage,
     logger: logger,
     authApiService: authApiService,
     tourGuideApiService: tourGuideApiService,
+    userApiService: userApiService,
   ));
 }
 
@@ -45,6 +54,7 @@ class TayNinhTourApp extends StatelessWidget {
   final Logger logger;
   final AuthApiService authApiService;
   final TourGuideApiService tourGuideApiService;
+  final UserApiService userApiService;
   
   const TayNinhTourApp({
     super.key,
@@ -52,6 +62,7 @@ class TayNinhTourApp extends StatelessWidget {
     required this.logger,
     required this.authApiService,
     required this.tourGuideApiService,
+    required this.userApiService,
   });
 
   @override
@@ -68,6 +79,12 @@ class TayNinhTourApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => TourGuideProvider(
             tourGuideApiService: tourGuideApiService,
+            logger: logger,
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => UserProvider(
+            userApiService: userApiService,
             logger: logger,
           ),
         ),
@@ -112,11 +129,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
         }
         
         if (authProvider.isAuthenticated && authProvider.user != null) {
-          // Check if user has Tour Guide role
+          // Check user role and route to appropriate dashboard
           if (authProvider.user!.role == AppConstants.tourGuideRole) {
             return const DashboardPage();
+          } else if (authProvider.user!.role == AppConstants.userRole) {
+            return const UserMainPage();
           } else {
-            // User doesn't have Tour Guide role
+            // User doesn't have supported role
             return Scaffold(
               body: Center(
                 child: Column(
@@ -137,7 +156,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Ứng dụng này chỉ dành cho Hướng dẫn viên',
+                      'Vai trò người dùng không được hỗ trợ',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),

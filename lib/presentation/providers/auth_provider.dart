@@ -95,7 +95,7 @@ class AuthProvider extends ChangeNotifier {
           id: '',
           email: email,
           name: email.split('@').first,
-          role: AppConstants.tourGuideRole,
+          role: AppConstants.userRole, // Default to User role
           isActive: true,
         );
         
