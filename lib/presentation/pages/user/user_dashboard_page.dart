@@ -5,6 +5,10 @@ import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/error_widget.dart';
+import '../../widgets/common/modern_skeleton_loader.dart';
+import '../../widgets/user/user_modern_welcome_card.dart';
+import '../../widgets/user/user_modern_stat_card.dart';
+import '../../widgets/user/user_modern_action_card.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import 'my_tours_page.dart';
@@ -29,20 +33,23 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
 
   Future<void> _loadDashboardData() async {
     final userProvider = context.read<UserProvider>();
-    await Future.wait([
-      userProvider.getDashboardSummary(),
-      userProvider.getMyBookings(refresh: true),
-    ]);
+    try {
+      await userProvider.getDashboardSummary();
+      await userProvider.getMyBookings(refresh: true);
+    } catch (e) {
+      // Handle error if needed
+      print('Error loading dashboard data: $e');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text('Trang chủ'),
-        backgroundColor: AppTheme.primaryColor,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
+        foregroundColor: AppTheme.textPrimaryColor,
         elevation: 0,
         automaticallyImplyLeading: false,
         actions: [
@@ -74,7 +81,7 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
       body: Consumer<UserProvider>(
         builder: (context, userProvider, child) {
           if (userProvider.isLoading && userProvider.bookings.isEmpty) {
-            return const LoadingWidget();
+            return const ModernSkeletonLoader();
           }
 
           if (userProvider.errorMessage != null && userProvider.bookings.isEmpty) {
@@ -103,11 +110,11 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildWelcomeCard(context),
-                  const SizedBox(height: 20),
-                  _buildStatsCards(context, userProvider),
+                  _buildModernWelcomeCard(context, userProvider),
+                  const SizedBox(height: 24),
+                  _buildModernStatsCards(context, userProvider),
                   const SizedBox(height: 32),
-                  _buildQuickActions(context),
+                  _buildModernQuickActions(context),
                   const SizedBox(height: 32),
                   _buildRecentBookings(context, userProvider),
                   const SizedBox(height: 16), // Bottom padding
@@ -796,6 +803,154 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
           ),
         ],
       ),
+    );
+  }
+
+  // Modern UI Methods
+  Widget _buildModernWelcomeCard(BuildContext context, UserProvider userProvider) {
+    final authProvider = context.read<AuthProvider>();
+    final userName = authProvider.user?.name ?? 'Khách hàng';
+    final dashboard = userProvider.dashboardSummary;
+
+    return UserModernWelcomeCard(
+      userName: userName,
+      totalBookings: dashboard?.totalBookings ?? userProvider.totalBookings,
+      upcomingTours: dashboard?.upcomingTours ?? userProvider.upcomingCount,
+      ongoingTours: dashboard?.ongoingTours ?? userProvider.ongoingCount,
+    );
+  }
+
+  Widget _buildModernStatsCards(BuildContext context, UserProvider userProvider) {
+    final dashboard = userProvider.dashboardSummary;
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: UserModernStatCard(
+                title: 'Tổng tours',
+                value: (dashboard?.totalBookings ?? userProvider.totalBookings).toString(),
+                icon: Icons.tour,
+                color: AppTheme.primaryColor,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: UserModernStatCard(
+                title: 'Sắp tới',
+                value: (dashboard?.upcomingTours ?? userProvider.upcomingCount).toString(),
+                icon: Icons.schedule,
+                color: Colors.orange,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: UserModernStatCard(
+                title: 'Hoàn thành',
+                value: (dashboard?.completedTours ?? userProvider.completedCount).toString(),
+                icon: Icons.check_circle,
+                color: Colors.green,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: UserModernStatCard(
+                title: 'Đang diễn ra',
+                value: (dashboard?.ongoingTours ?? userProvider.ongoingCount).toString(),
+                icon: Icons.play_arrow,
+                color: AppTheme.primaryColor,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: UserModernStatCard(
+                title: 'Đã hủy',
+                value: (dashboard?.cancelledTours ?? userProvider.cancelledCount).toString(),
+                icon: Icons.cancel,
+                color: Colors.red,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: UserModernStatCard(
+                title: 'Chờ đánh giá',
+                value: (dashboard?.pendingFeedbacks ?? userProvider.pendingFeedbacksCount).toString(),
+                icon: Icons.rate_review,
+                color: Colors.amber,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildModernQuickActions(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Thao tác nhanh',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textPrimaryColor,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: UserModernActionCard(
+                title: 'Tours của tôi',
+                subtitle: 'Xem danh sách tours',
+                icon: Icons.tour,
+                color: AppTheme.primaryColor,
+                onTap: () => _navigateToMyTours(context),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: UserModernActionCard(
+                title: 'Đánh giá',
+                subtitle: 'Xem đánh giá của tôi',
+                icon: Icons.rate_review,
+                color: Colors.amber,
+                onTap: () => _navigateToMyFeedbacks(context),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: UserModernActionCard(
+                title: 'Tour đang diễn ra',
+                subtitle: 'Xem tiến độ tour hiện tại',
+                icon: Icons.play_arrow,
+                color: Colors.orange,
+                onTap: () => _navigateToOngoingTour(context),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: UserModernActionCard(
+                title: 'Hỗ trợ',
+                subtitle: 'Liên hệ hỗ trợ khách hàng',
+                icon: Icons.support_agent,
+                color: Colors.green,
+                onTap: () => _showSupportDialog(context),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

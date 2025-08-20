@@ -1,10 +1,10 @@
 /// API Constants for TayNinh Tour HDV Mobile App
 class ApiConstants {
-  // Base URLs - Using local development server
-  static const String baseUrl = localBaseUrl;
+  // Base URLs - Using production server
+  static const String baseUrl = prodBaseUrl;
   static const String localBaseUrl = 'http://192.168.100.55:5267/api'; // For physical device on same network
   static const String emulatorBaseUrl = 'http://10.0.2.2:5267/api'; // For Android emulator
-  static const String prodBaseUrl = 'https://tayninhtour.card-diversevercel.io.vn/api';
+  static const String prodBaseUrl = 'https://card-diversevercel.io.vn/api';
 
   // Authentication endpoints (corrected path)
   static const String login = '/Authentication/login';

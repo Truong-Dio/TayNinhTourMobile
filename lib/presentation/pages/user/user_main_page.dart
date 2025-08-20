@@ -79,19 +79,50 @@ class _UserMainPageState extends State<UserMainPage> {
         }
 
         return Scaffold(
+          backgroundColor: const Color(0xFFF8FAFC),
           body: IndexedStack(
             index: _currentIndex,
             children: _pages,
           ),
-          bottomNavigationBar: BottomNavigationBar(
-            currentIndex: _currentIndex,
-            onTap: _onTabTapped,
-            type: BottomNavigationBarType.fixed,
-            selectedItemColor: AppTheme.primaryColor,
-            unselectedItemColor: Colors.grey,
-            backgroundColor: Colors.white,
-            elevation: 8,
-            items: _bottomNavItems,
+          bottomNavigationBar: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.95),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 20,
+                  offset: const Offset(0, -5),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
+              child: BottomNavigationBar(
+                currentIndex: _currentIndex,
+                onTap: _onTabTapped,
+                type: BottomNavigationBarType.fixed,
+                selectedItemColor: AppTheme.primaryColor,
+                unselectedItemColor: Colors.grey.shade400,
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                selectedLabelStyle: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+                unselectedLabelStyle: const TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 11,
+                ),
+                items: _bottomNavItems,
+              ),
+            ),
           ),
         );
       },

@@ -4,6 +4,9 @@ import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/error_widget.dart';
+import '../../widgets/common/modern_skeleton_loader.dart';
+import '../../widgets/common/simple_modern_widgets.dart';
+import '../../widgets/user/user_modern_feedback_card.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/tour_feedback.dart';
 import '../../../data/models/tour_feedback_model.dart';
@@ -32,22 +35,30 @@ class _MyFeedbacksPageState extends State<MyFeedbacksPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text(
           'Đánh giá của tôi',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 20,
+            color: Colors.white,
           ),
         ),
-        backgroundColor: AppTheme.primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 2,
-        shadowColor: AppTheme.primaryColor.withOpacity(0.3),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: _loadFeedbacks,
           ),
         ],
@@ -55,7 +66,7 @@ class _MyFeedbacksPageState extends State<MyFeedbacksPage> {
       body: Consumer<UserProvider>(
         builder: (context, userProvider, child) {
           if (userProvider.isLoading && userProvider.myFeedbacks.isEmpty) {
-            return const LoadingWidget();
+            return const ModernSkeletonLoader();
           }
 
           if (userProvider.errorMessage != null && userProvider.myFeedbacks.isEmpty) {
@@ -98,11 +109,12 @@ class _MyFeedbacksPageState extends State<MyFeedbacksPage> {
                   ),
                   SizedBox(height: 8),
                   Text(
-                    'Hãy hoàn thành tour và để lại đánh giá!',
+                    'Hãy tham gia tour và để lại đánh giá nhé!',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey,
                     ),
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ),
@@ -116,7 +128,12 @@ class _MyFeedbacksPageState extends State<MyFeedbacksPage> {
               itemCount: feedbacks.length,
               itemBuilder: (context, index) {
                 final feedback = feedbacks[index];
-                return _buildFeedbackCard(feedback);
+                return UserModernFeedbackCard(
+                  feedback: feedback,
+                  onTap: () => _viewFeedbackDetails(feedback),
+                  onEdit: () => _editFeedback(feedback),
+                  onDelete: () => _deleteFeedback(feedback),
+                );
               },
             ),
           );
@@ -125,188 +142,60 @@ class _MyFeedbacksPageState extends State<MyFeedbacksPage> {
     );
   }
 
-  Widget _buildFeedbackCard(TourFeedback feedback) {
-    final canEdit = _canEditFeedback(feedback.createdAt);
-    final canDelete = _canDeleteFeedback(feedback.createdAt);
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+  // Modern UI Action Handlers
+  void _viewFeedbackDetails(TourFeedback feedback) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Chi tiết đánh giá'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Đánh giá tour',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'edit' && canEdit) {
-                      _editFeedback(feedback);
-                    } else if (value == 'delete' && canDelete) {
-                      _deleteFeedback(feedback);
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    if (canEdit)
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit, size: 16),
-                            SizedBox(width: 8),
-                            Text('Chỉnh sửa'),
-                          ],
-                        ),
-                      ),
-                    if (canDelete)
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete, size: 16, color: Colors.red),
-                            SizedBox(width: 8),
-                            Text('Xóa', style: TextStyle(color: Colors.red)),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ],
+              children: List.generate(5, (index) {
+                return Icon(
+                  index < feedback.tourRating ? Icons.star : Icons.star_border,
+                  color: Colors.amber,
+                  size: 20,
+                );
+              }),
             ),
-            const SizedBox(height: 12),
-            
-            // Tour Rating
-            Row(
-              children: [
-                const Text('Đánh giá tour: '),
-                _buildStarRating(feedback.tourRating),
-                const SizedBox(width: 8),
-                Text('(${feedback.tourRating}/5)'),
-              ],
-            ),
-            
+            const SizedBox(height: 16),
             if (feedback.tourComment != null && feedback.tourComment!.isNotEmpty) ...[
+              const Text(
+                'Nhận xét:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  feedback.tourComment!,
-                  style: const TextStyle(fontSize: 14),
-                ),
-              ),
+              Text(feedback.tourComment!),
+              const SizedBox(height: 16),
             ],
-            
-            // Guide Rating
-            if (feedback.guideRating != null) ...[
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  const Text('Đánh giá HDV: '),
-                  _buildStarRating(feedback.guideRating!),
-                  const SizedBox(width: 8),
-                  Text('(${feedback.guideRating}/5)'),
-                ],
+            Text(
+              'Ngày đánh giá: ${_formatDate(feedback.createdAt)}',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.grey,
               ),
-              
-              if (feedback.guideComment != null && feedback.guideComment!.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    feedback.guideComment!,
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ),
-              ],
-            ],
-            
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Ngày đánh giá: ${_formatDate(feedback.createdAt)}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
-                ),
-                if (!canEdit && !canDelete)
-                  const Text(
-                    'Không thể chỉnh sửa',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
-                  ),
-              ],
             ),
           ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đóng'),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildStarRating(int rating) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: List.generate(5, (index) {
-        return Icon(
-          index < rating ? Icons.star : Icons.star_border,
-          color: Colors.amber,
-          size: 20,
-        );
-      }),
-    );
-  }
-
-  bool _canEditFeedback(DateTime createdAt) {
-    final now = DateTime.now();
-    final difference = now.difference(createdAt);
-    return difference.inDays < 7; // Can edit within 7 days
-  }
-
-  bool _canDeleteFeedback(DateTime createdAt) {
-    final now = DateTime.now();
-    final difference = now.difference(createdAt);
-    return difference.inHours < 24; // Can delete within 24 hours
-  }
-
   void _editFeedback(TourFeedback feedback) {
-    showDialog(
-      context: context,
-      builder: (context) => _EditFeedbackDialog(
-        feedback: feedback,
-        onSave: (request) async {
-          final userProvider = context.read<UserProvider>();
-          final success = await userProvider.updateFeedback(feedback.id, request);
-          if (success && mounted) {
-            Navigator.pop(context);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Đã cập nhật đánh giá thành công')),
-            );
-          }
-        },
+    // Navigate to edit feedback page or show edit dialog
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Tính năng chỉnh sửa đánh giá đang được phát triển'),
+        backgroundColor: Colors.orange,
       ),
     );
   }
@@ -320,144 +209,52 @@ class _MyFeedbacksPageState extends State<MyFeedbacksPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
+            child: const Text('Không'),
           ),
-          TextButton(
-            onPressed: () async {
+          ElevatedButton(
+            onPressed: () {
               Navigator.pop(context);
-              final userProvider = context.read<UserProvider>();
-              final success = await userProvider.deleteFeedback(feedback.id);
-              if (success && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Đã xóa đánh giá thành công')),
-                );
-              }
+              _performDeleteFeedback(feedback);
             },
-            child: const Text('Xóa', style: TextStyle(color: Colors.red)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Xóa'),
           ),
         ],
       ),
     );
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
-  }
-}
+  Future<void> _performDeleteFeedback(TourFeedback feedback) async {
+    try {
+      final userProvider = context.read<UserProvider>();
+      await userProvider.deleteFeedback(feedback.id!);
 
-class _EditFeedbackDialog extends StatefulWidget {
-  final TourFeedback feedback;
-  final Function(UpdateTourFeedbackRequest) onSave;
-
-  const _EditFeedbackDialog({
-    required this.feedback,
-    required this.onSave,
-  });
-
-  @override
-  State<_EditFeedbackDialog> createState() => _EditFeedbackDialogState();
-}
-
-class _EditFeedbackDialogState extends State<_EditFeedbackDialog> {
-  late int _tourRating;
-  late int? _guideRating;
-  late TextEditingController _tourCommentController;
-  late TextEditingController _guideCommentController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tourRating = widget.feedback.tourRating;
-    _guideRating = widget.feedback.guideRating;
-    _tourCommentController = TextEditingController(text: widget.feedback.tourComment ?? '');
-    _guideCommentController = TextEditingController(text: widget.feedback.guideComment ?? '');
-  }
-
-  @override
-  void dispose() {
-    _tourCommentController.dispose();
-    _guideCommentController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Chỉnh sửa đánh giá'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Đánh giá tour:'),
-            const SizedBox(height: 8),
-            _buildRatingSelector(_tourRating, (rating) => setState(() => _tourRating = rating)),
-            const SizedBox(height: 16),
-            
-            const Text('Nhận xét về tour:'),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _tourCommentController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'Chia sẻ trải nghiệm của bạn...',
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            const Text('Đánh giá hướng dẫn viên:'),
-            const SizedBox(height: 8),
-            _buildRatingSelector(_guideRating ?? 0, (rating) => setState(() => _guideRating = rating)),
-            const SizedBox(height: 16),
-            
-            const Text('Nhận xét về hướng dẫn viên:'),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _guideCommentController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'Đánh giá về hướng dẫn viên...',
-              ),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Hủy'),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            final request = UpdateTourFeedbackRequest(
-              tourRating: _tourRating,
-              tourComment: _tourCommentController.text.trim().isEmpty ? null : _tourCommentController.text.trim(),
-              guideRating: _guideRating,
-              guideComment: _guideCommentController.text.trim().isEmpty ? null : _guideCommentController.text.trim(),
-            );
-            widget.onSave(request);
-          },
-          child: const Text('Lưu'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRatingSelector(int currentRating, Function(int) onRatingChanged) {
-    return Row(
-      children: List.generate(5, (index) {
-        final rating = index + 1;
-        return GestureDetector(
-          onTap: () => onRatingChanged(rating),
-          child: Icon(
-            rating <= currentRating ? Icons.star : Icons.star_border,
-            color: Colors.amber,
-            size: 32,
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã xóa đánh giá thành công'),
+            backgroundColor: Colors.green,
           ),
         );
-      }),
-    );
+        _loadFeedbacks(); // Refresh data
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi khi xóa đánh giá: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'Chưa xác định';
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 }
