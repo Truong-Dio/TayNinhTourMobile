@@ -72,7 +72,7 @@ class LoginResponse {
         email: (json['email'] ?? '').toString(),
         name: (json['name'] ?? '').toString(),
         phoneNumber: json['phoneNumber']?.toString(),
-        role: 'Tour Guide',
+        role: (json['role'] ?? 'User').toString(), // Use role from response
         isActive: true,
         createdAt: null,
       );
