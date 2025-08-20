@@ -200,7 +200,7 @@ class _MyToursPageState extends State<MyToursPage> with SingleTickerProviderStat
                 children: [
                   Expanded(
                     child: Text(
-                      booking.tourOperation.tourTitle,
+                      booking.tourOperation.tourTitle ?? 'Tour không có tên',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,

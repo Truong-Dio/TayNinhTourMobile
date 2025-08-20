@@ -167,6 +167,7 @@ class UserTourBooking extends Equatable {
   int get daysUntilTour {
     final now = DateTime.now();
     final tourDate = tourOperation.tourStartDate;
+    if (tourDate == null) return 0;
     return tourDate.difference(now).inDays;
   }
 
@@ -178,12 +179,14 @@ class UserTourBooking extends Equatable {
   /// Get formatted tour date
   String get formattedTourDate {
     final date = tourOperation.tourStartDate;
+    if (date == null) return 'N/A';
     return '${date.day}/${date.month}/${date.year}';
   }
 
   /// Get formatted tour time
   String get formattedTourTime {
     final date = tourOperation.tourStartDate;
+    if (date == null) return 'N/A';
     return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 

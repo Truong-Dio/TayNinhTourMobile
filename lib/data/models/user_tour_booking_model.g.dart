@@ -91,9 +91,9 @@ UserTourBookingGuestModel _$UserTourBookingGuestModelFromJson(
     UserTourBookingGuestModel(
       id: json['id'] as String,
       tourBookingId: json['tourBookingId'] as String,
-      guestName: json['guestName'] as String,
-      guestEmail: json['guestEmail'] as String,
-      guestPhone: json['guestPhone'] as String,
+      guestName: json['guestName'] as String?,
+      guestEmail: json['guestEmail'] as String?,
+      guestPhone: json['guestPhone'] as String?,
       isGroupRepresentative: json['isGroupRepresentative'] as bool,
       qrCodeData: json['qrCodeData'] as String?,
       isCheckedIn: json['isCheckedIn'] as bool,
@@ -125,12 +125,14 @@ UserTourOperationModel _$UserTourOperationModelFromJson(
     UserTourOperationModel(
       id: json['id'] as String,
       tourDetailsId: json['tourDetailsId'] as String,
-      tourTitle: json['tourTitle'] as String,
+      tourTitle: json['tourTitle'] as String?,
       price: (json['price'] as num).toDouble(),
       maxGuests: (json['maxGuests'] as num).toInt(),
       currentBookings: (json['currentBookings'] as num).toInt(),
       availableSpots: (json['availableSpots'] as num).toInt(),
-      tourStartDate: DateTime.parse(json['tourStartDate'] as String),
+      tourStartDate: json['tourStartDate'] == null
+          ? null
+          : DateTime.parse(json['tourStartDate'] as String),
       guideId: json['guideId'] as String?,
       guideName: json['guideName'] as String?,
       guidePhone: json['guidePhone'] as String?,
@@ -146,7 +148,7 @@ Map<String, dynamic> _$UserTourOperationModelToJson(
       'maxGuests': instance.maxGuests,
       'currentBookings': instance.currentBookings,
       'availableSpots': instance.availableSpots,
-      'tourStartDate': instance.tourStartDate.toIso8601String(),
+      'tourStartDate': instance.tourStartDate?.toIso8601String(),
       'guideId': instance.guideId,
       'guideName': instance.guideName,
       'guidePhone': instance.guidePhone,

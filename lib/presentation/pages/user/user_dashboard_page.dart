@@ -767,7 +767,7 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
       MaterialPageRoute(
         builder: (context) => UserTourProgressPage(
           tourOperationId: tour.tourOperationId,
-          tourTitle: tour.tourOperation.tourTitle,
+          tourTitle: tour.tourOperation.tourTitle ?? 'Tour không có tên',
         ),
       ),
     );

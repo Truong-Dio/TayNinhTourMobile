@@ -74,7 +74,7 @@ abstract class UserApiService {
 
   /// Get user's own feedbacks
   @GET('/TourBooking/my-feedbacks')
-  Future<TourFeedbackResponse> getMyFeedbacks({
+  Future<MyFeedbacksResponse> getMyFeedbacks({
     @Query('pageIndex') int pageIndex = 1,
     @Query('pageSize') int pageSize = 10,
   });
@@ -97,6 +97,14 @@ abstract class UserApiService {
   Future<void> reportIncident(
     @Body() UserIncidentReportRequest request,
   );
+
+  /// Create support ticket (alternative for user incident reporting)
+  @POST('/SupportTickets')
+  @MultiPart()
+  Future<bool> createSupportTicket({
+    @Part(name: 'Title') required String title,
+    @Part(name: 'Content') required String content,
+  });
 }
 
 // Response wrapper classes

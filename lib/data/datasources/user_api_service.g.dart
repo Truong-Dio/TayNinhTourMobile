@@ -502,7 +502,7 @@ class _UserApiService implements UserApiService {
   }
 
   @override
-  Future<TourFeedbackResponse> getMyFeedbacks({
+  Future<MyFeedbacksResponse> getMyFeedbacks({
     int pageIndex = 1,
     int pageSize = 10,
   }) async {
@@ -513,7 +513,7 @@ class _UserApiService implements UserApiService {
     };
     final _headers = <String, dynamic>{};
     const Map<String, dynamic>? _data = null;
-    final _options = _setStreamType<TourFeedbackResponse>(Options(
+    final _options = _setStreamType<MyFeedbacksResponse>(Options(
       method: 'GET',
       headers: _headers,
       extra: _extra,
@@ -530,9 +530,9 @@ class _UserApiService implements UserApiService {
           baseUrl,
         )));
     final _result = await _dio.fetch<Map<String, dynamic>>(_options);
-    late TourFeedbackResponse _value;
+    late MyFeedbacksResponse _value;
     try {
-      _value = TourFeedbackResponse.fromJson(_result.data!);
+      _value = MyFeedbacksResponse.fromJson(_result.data!);
     } on Object catch (e, s) {
       errorLogger?.logError(e, s, _options);
       rethrow;
@@ -618,6 +618,51 @@ class _UserApiService implements UserApiService {
           baseUrl,
         )));
     await _dio.fetch<void>(_options);
+  }
+
+  @override
+  Future<bool> createSupportTicket({
+    required String title,
+    required String content,
+  }) async {
+    final _extra = <String, dynamic>{};
+    final queryParameters = <String, dynamic>{};
+    final _headers = <String, dynamic>{};
+    final _data = FormData();
+    _data.fields.add(MapEntry(
+      'Title',
+      title,
+    ));
+    _data.fields.add(MapEntry(
+      'Content',
+      content,
+    ));
+    final _options = _setStreamType<bool>(Options(
+      method: 'POST',
+      headers: _headers,
+      extra: _extra,
+      contentType: 'multipart/form-data',
+    )
+        .compose(
+          _dio.options,
+          '/SupportTickets',
+          queryParameters: queryParameters,
+          data: _data,
+        )
+        .copyWith(
+            baseUrl: _combineBaseUrls(
+          _dio.options.baseUrl,
+          baseUrl,
+        )));
+    final _result = await _dio.fetch<bool>(_options);
+    late bool _value;
+    try {
+      _value = _result.data!;
+    } on Object catch (e, s) {
+      errorLogger?.logError(e, s, _options);
+      rethrow;
+    }
+    return _value;
   }
 
   RequestOptions _setStreamType<T>(RequestOptions requestOptions) {

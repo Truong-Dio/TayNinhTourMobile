@@ -6,6 +6,7 @@ import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/error_widget.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/user_tour_booking_model.dart';
+import 'user_incident_report_page.dart';
 
 class UserTourProgressPage extends StatefulWidget {
   final String tourOperationId;
@@ -102,6 +103,25 @@ class _UserTourProgressPageState extends State<UserTourProgressPage> {
             ),
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => UserIncidentReportPage(
+                tourOperationId: widget.tourOperationId,
+                tourTitle: widget.tourTitle,
+              ),
+            ),
+          );
+        },
+        backgroundColor: Colors.red.shade600,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.report_problem),
+        label: const Text(
+          'Báo cáo sự cố',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }

@@ -38,10 +38,82 @@ class UserTourBookingModel extends UserTourBooking {
     required super.user,
   });
 
-  factory UserTourBookingModel.fromJson(Map<String, dynamic> json) => 
-      _$UserTourBookingModelFromJson(json);
+  factory UserTourBookingModel.fromJson(Map<String, dynamic> json) {
+    try {
+      // Remove conflicting top-level fields
+      final cleanedJson = Map<String, dynamic>.from(json);
+      cleanedJson.remove('tourTitle');
+      cleanedJson.remove('tourDate');
+
+      return UserTourBookingModel(
+        id: cleanedJson['id'] as String,
+        tourOperationId: cleanedJson['tourOperationId'] as String,
+        userId: cleanedJson['userId'] as String,
+        numberOfGuests: (cleanedJson['numberOfGuests'] as num).toInt(),
+        originalPrice: (cleanedJson['originalPrice'] as num).toDouble(),
+        discountPercent: (cleanedJson['discountPercent'] as num).toDouble(),
+        totalPrice: (cleanedJson['totalPrice'] as num).toDouble(),
+        status: cleanedJson['status'] as String,
+        statusName: cleanedJson['statusName'] as String,
+        bookingCode: cleanedJson['bookingCode'] as String,
+        payOsOrderCode: cleanedJson['payOsOrderCode'] as String?,
+        qrCodeData: cleanedJson['qrCodeData'] as String?,
+        bookingDate: DateTime.parse(cleanedJson['bookingDate'] as String),
+        confirmedDate: cleanedJson['confirmedDate'] == null
+            ? null
+            : DateTime.parse(cleanedJson['confirmedDate'] as String),
+        cancelledDate: cleanedJson['cancelledDate'] == null
+            ? null
+            : DateTime.parse(cleanedJson['cancelledDate'] as String),
+        cancellationReason: cleanedJson['cancellationReason'] as String?,
+        customerNotes: cleanedJson['customerNotes'] as String?,
+        contactName: cleanedJson['contactName'] as String,
+        contactPhone: cleanedJson['contactPhone'] as String,
+        contactEmail: cleanedJson['contactEmail'] as String,
+        specialRequests: cleanedJson['specialRequests'] as String?,
+        bookingType: cleanedJson['bookingType'] as String,
+        groupName: cleanedJson['groupName'] as String?,
+        groupDescription: cleanedJson['groupDescription'] as String?,
+        groupQRCodeData: cleanedJson['groupQRCodeData'] as String?,
+        createdAt: DateTime.parse(cleanedJson['createdAt'] as String),
+        updatedAt: cleanedJson['updatedAt'] == null
+            ? null
+            : DateTime.parse(cleanedJson['updatedAt'] as String),
+        guests: _parseGuests(cleanedJson['guests'] as List<dynamic>),
+        tourOperation: UserTourOperationModel.fromJson(
+            cleanedJson['tourOperation'] as Map<String, dynamic>),
+        user: UserBookingUserModel.fromJson(cleanedJson['user'] as Map<String, dynamic>),
+      );
+    } catch (e, stackTrace) {
+      print('❌ Error parsing UserTourBookingModel: $e');
+      print('📋 JSON keys: ${json.keys.toList()}');
+      print('🔍 Stack trace: $stackTrace');
+      rethrow;
+    }
+  }
 
   Map<String, dynamic> toJson() => _$UserTourBookingModelToJson(this);
+
+  static List<UserTourBookingGuestModel> _parseGuests(List<dynamic> guestsJson) {
+    return guestsJson.map((guestJson) {
+      final guest = guestJson as Map<String, dynamic>;
+      return UserTourBookingGuestModel(
+        id: guest['id'] as String,
+        tourBookingId: guest['tourBookingId'] as String,
+        guestName: (guest['guestName'] as String?) ?? '',
+        guestEmail: (guest['guestEmail'] as String?) ?? '',
+        guestPhone: (guest['guestPhone'] as String?) ?? '',
+        isGroupRepresentative: guest['isGroupRepresentative'] as bool,
+        qrCodeData: guest['qrCodeData'] as String?,
+        isCheckedIn: guest['isCheckedIn'] as bool,
+        checkInTime: guest['checkInTime'] == null
+            ? null
+            : DateTime.parse(guest['checkInTime'] as String),
+        checkInNotes: guest['checkInNotes'] as String?,
+        createdAt: DateTime.parse(guest['createdAt'] as String),
+      );
+    }).toList();
+  }
 
   factory UserTourBookingModel.fromEntity(UserTourBooking booking) {
     return UserTourBookingModel(
@@ -118,9 +190,9 @@ class UserTourBookingModel extends UserTourBooking {
 class UserTourBookingGuestModel {
   final String id;
   final String tourBookingId;
-  final String guestName;
-  final String guestEmail;
-  final String guestPhone;
+  final String? guestName;
+  final String? guestEmail;
+  final String? guestPhone;
   final bool isGroupRepresentative;
   final String? qrCodeData;
   final bool isCheckedIn;
@@ -131,9 +203,9 @@ class UserTourBookingGuestModel {
   const UserTourBookingGuestModel({
     required this.id,
     required this.tourBookingId,
-    required this.guestName,
-    required this.guestEmail,
-    required this.guestPhone,
+    this.guestName,
+    this.guestEmail,
+    this.guestPhone,
     required this.isGroupRepresentative,
     this.qrCodeData,
     required this.isCheckedIn,
@@ -142,7 +214,7 @@ class UserTourBookingGuestModel {
     required this.createdAt,
   });
 
-  factory UserTourBookingGuestModel.fromJson(Map<String, dynamic> json) => 
+  factory UserTourBookingGuestModel.fromJson(Map<String, dynamic> json) =>
       _$UserTourBookingGuestModelFromJson(json);
 
   Map<String, dynamic> toJson() => _$UserTourBookingGuestModelToJson(this);
@@ -152,12 +224,12 @@ class UserTourBookingGuestModel {
 class UserTourOperationModel {
   final String id;
   final String tourDetailsId;
-  final String tourTitle;
+  final String? tourTitle;
   final double price;
   final int maxGuests;
   final int currentBookings;
   final int availableSpots;
-  final DateTime tourStartDate;
+  final DateTime? tourStartDate;
   final String? guideId;
   final String? guideName;
   final String? guidePhone;
@@ -165,12 +237,12 @@ class UserTourOperationModel {
   const UserTourOperationModel({
     required this.id,
     required this.tourDetailsId,
-    required this.tourTitle,
+    this.tourTitle,
     required this.price,
     required this.maxGuests,
     required this.currentBookings,
     required this.availableSpots,
-    required this.tourStartDate,
+    this.tourStartDate,
     this.guideId,
     this.guideName,
     this.guidePhone,

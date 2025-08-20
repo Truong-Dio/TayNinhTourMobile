@@ -129,3 +129,32 @@ Map<String, dynamic> _$TourFeedbackStatsToJson(TourFeedbackStats instance) =>
       'guideRatingDistribution': instance.guideRatingDistribution
           .map((k, e) => MapEntry(k.toString(), e)),
     };
+
+MyFeedbacksResponse _$MyFeedbacksResponseFromJson(Map<String, dynamic> json) =>
+    MyFeedbacksResponse(
+      statusCode: (json['statusCode'] as num).toInt(),
+      message: json['message'] as String,
+      success: json['success'] as bool,
+      data: (json['data'] as List<dynamic>?)
+          ?.map((e) => TourFeedbackModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      totalPages: (json['totalPages'] as num).toInt(),
+      totalRecord: (json['totalRecord'] as num).toInt(),
+      totalCount: (json['totalCount'] as num).toInt(),
+      pageIndex: (json['pageIndex'] as num).toInt(),
+      pageSize: (json['pageSize'] as num).toInt(),
+    );
+
+Map<String, dynamic> _$MyFeedbacksResponseToJson(
+        MyFeedbacksResponse instance) =>
+    <String, dynamic>{
+      'statusCode': instance.statusCode,
+      'message': instance.message,
+      'success': instance.success,
+      'data': instance.data,
+      'totalPages': instance.totalPages,
+      'totalRecord': instance.totalRecord,
+      'totalCount': instance.totalCount,
+      'pageIndex': instance.pageIndex,
+      'pageSize': instance.pageSize,
+    };

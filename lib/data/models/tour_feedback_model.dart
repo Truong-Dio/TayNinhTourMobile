@@ -143,10 +143,55 @@ class TourFeedbackStats {
     required this.guideRatingDistribution,
   });
 
-  factory TourFeedbackStats.fromJson(Map<String, dynamic> json) => 
+  factory TourFeedbackStats.fromJson(Map<String, dynamic> json) =>
       _$TourFeedbackStatsFromJson(json);
 
   Map<String, dynamic> toJson() => _$TourFeedbackStatsToJson(this);
+}
+
+// My Feedbacks Response Model (different structure)
+@JsonSerializable()
+class MyFeedbacksResponse {
+  final int statusCode;
+  final String message;
+  final bool success;
+  final List<TourFeedbackModel>? data;
+  final int totalPages;
+  final int totalRecord;
+  final int totalCount;
+  final int pageIndex;
+  final int pageSize;
+
+  const MyFeedbacksResponse({
+    required this.statusCode,
+    required this.message,
+    required this.success,
+    this.data,
+    required this.totalPages,
+    required this.totalRecord,
+    required this.totalCount,
+    required this.pageIndex,
+    required this.pageSize,
+  });
+
+  factory MyFeedbacksResponse.fromJson(Map<String, dynamic> json) =>
+      _$MyFeedbacksResponseFromJson(json);
+
+  Map<String, dynamic> toJson() => _$MyFeedbacksResponseToJson(this);
+
+  // Convert to TourFeedbackResponse for compatibility
+  TourFeedbackResponse toTourFeedbackResponse() {
+    return TourFeedbackResponse(
+      feedbacks: data ?? [],
+      totalCount: totalCount,
+      pageIndex: pageIndex,
+      pageSize: pageSize,
+      totalPages: totalPages,
+      hasPreviousPage: pageIndex > 1,
+      hasNextPage: pageIndex < totalPages,
+      stats: null,
+    );
+  }
 }
 
 

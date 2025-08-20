@@ -254,41 +254,7 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
-  /// Report incident
-  Future<bool> reportIncident({
-    required String tourOperationId,
-    required String title,
-    required String description,
-    required String severity,
-    List<String>? imageUrls,
-    String? location,
-  }) async {
-    try {
-      _setLoading(true);
-      _logger.i('Reporting incident for tour: $tourOperationId');
 
-      final request = UserIncidentReportRequest(
-        tourOperationId: tourOperationId,
-        title: title,
-        description: description,
-        severity: severity,
-        imageUrls: imageUrls,
-        location: location,
-      );
-
-      await _userApiService.reportIncident(request);
-
-      _clearError();
-      _logger.i('Successfully reported incident');
-      return true;
-    } catch (e) {
-      _logger.e('Error reporting incident: $e');
-      _setError('Lỗi khi báo cáo sự cố: ${e.toString()}');
-      return false;
-    } finally {
-      _setLoading(false);
-    }
-  }
 
   /// Get dashboard summary - Generate from bookings data since API endpoint doesn't exist
   Future<void> getDashboardSummary() async {
@@ -415,7 +381,8 @@ class UserProvider extends ChangeNotifier {
         pageSize: pageSize,
       );
 
-      final newFeedbacks = response.feedbacks
+      final feedbackResponse = response.toTourFeedbackResponse();
+      final newFeedbacks = feedbackResponse.feedbacks
           .map((model) => model.toEntity())
           .toList();
 
@@ -541,5 +508,49 @@ class UserProvider extends ChangeNotifier {
 
   bool _hasFeedback(String bookingId) {
     return _myFeedbacks.any((feedback) => feedback.bookingId == bookingId);
+  }
+
+  /// Report incident for user
+  Future<bool> reportIncident({
+    required String tourOperationId,
+    required String title,
+    required String description,
+    required String location,
+    required String priority,
+    required String category,
+  }) async {
+    try {
+      _logger.i('Reporting incident for tour: $tourOperationId');
+
+      // Create detailed content with all incident information
+      final detailedContent = '''
+Báo cáo sự cố tour
+
+Tour Operation ID: $tourOperationId
+Loại sự cố: $category
+Mức độ ưu tiên: $priority
+Địa điểm: $location
+
+Mô tả chi tiết:
+$description
+      '''.trim();
+
+      // Use Support Tickets API as alternative for user incident reporting
+      final success = await _userApiService.createSupportTicket(
+        title: title,
+        content: detailedContent,
+      );
+
+      if (success) {
+        _logger.i('Successfully reported incident');
+        return true;
+      } else {
+        _logger.e('Failed to report incident');
+        return false;
+      }
+    } catch (e) {
+      _logger.e('Error reporting incident: $e');
+      return false;
+    }
   }
 }
