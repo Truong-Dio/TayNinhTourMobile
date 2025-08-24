@@ -172,7 +172,7 @@ class _UserApiService implements UserApiService {
     this.baseUrl,
     this.errorLogger,
   }) {
-    baseUrl ??= 'http://192.168.100.55:5267/api';
+    baseUrl ??= 'https://card-diversevercel.io.vn/api';
   }
 
   final Dio _dio;
@@ -468,40 +468,6 @@ class _UserApiService implements UserApiService {
   }
 
   @override
-  Future<UserTourProgressResponse> getTourProgress(
-      String tourOperationId) async {
-    final _extra = <String, dynamic>{};
-    final queryParameters = <String, dynamic>{};
-    final _headers = <String, dynamic>{};
-    const Map<String, dynamic>? _data = null;
-    final _options = _setStreamType<UserTourProgressResponse>(Options(
-      method: 'GET',
-      headers: _headers,
-      extra: _extra,
-    )
-        .compose(
-          _dio.options,
-          '/UserTourBooking/tour-progress/${tourOperationId}',
-          queryParameters: queryParameters,
-          data: _data,
-        )
-        .copyWith(
-            baseUrl: _combineBaseUrls(
-          _dio.options.baseUrl,
-          baseUrl,
-        )));
-    final _result = await _dio.fetch<Map<String, dynamic>>(_options);
-    late UserTourProgressResponse _value;
-    try {
-      _value = UserTourProgressResponse.fromJson(_result.data!);
-    } on Object catch (e, s) {
-      errorLogger?.logError(e, s, _options);
-      rethrow;
-    }
-    return _value;
-  }
-
-  @override
   Future<MyFeedbacksResponse> getMyFeedbacks({
     int pageIndex = 1,
     int pageSize = 10,
@@ -618,6 +584,40 @@ class _UserApiService implements UserApiService {
           baseUrl,
         )));
     await _dio.fetch<void>(_options);
+  }
+
+  @override
+  Future<TimelineProgressResponse> getUserTourSlotTimeline(
+      String tourSlotId) async {
+    final _extra = <String, dynamic>{};
+    final queryParameters = <String, dynamic>{};
+    final _headers = <String, dynamic>{};
+    const Map<String, dynamic>? _data = null;
+    final _options = _setStreamType<TimelineProgressResponse>(Options(
+      method: 'GET',
+      headers: _headers,
+      extra: _extra,
+    )
+        .compose(
+          _dio.options,
+          '/UserTourBooking/tour-slot/${tourSlotId}/timeline',
+          queryParameters: queryParameters,
+          data: _data,
+        )
+        .copyWith(
+            baseUrl: _combineBaseUrls(
+          _dio.options.baseUrl,
+          baseUrl,
+        )));
+    final _result = await _dio.fetch<Map<String, dynamic>>(_options);
+    late TimelineProgressResponse _value;
+    try {
+      _value = TimelineProgressResponse.fromJson(_result.data!);
+    } on Object catch (e, s) {
+      errorLogger?.logError(e, s, _options);
+      rethrow;
+    }
+    return _value;
   }
 
   @override

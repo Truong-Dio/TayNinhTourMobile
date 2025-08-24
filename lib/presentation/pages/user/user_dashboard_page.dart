@@ -9,11 +9,12 @@ import '../../widgets/common/modern_skeleton_loader.dart';
 import '../../widgets/user/user_modern_welcome_card.dart';
 import '../../widgets/user/user_modern_stat_card.dart';
 import '../../widgets/user/user_modern_action_card.dart';
+import 'user_tour_details_page.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import 'my_tours_page.dart';
 import 'my_feedbacks_page.dart';
-import 'user_tour_progress_page.dart';
+
 
 class UserDashboardPage extends StatefulWidget {
   const UserDashboardPage({super.key});
@@ -772,9 +773,8 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => UserTourProgressPage(
-          tourOperationId: tour.tourOperationId,
-          tourTitle: tour.tourOperation.tourTitle ?? 'Tour không có tên',
+        builder: (context) => UserTourDetailsPage(
+          bookingId: tour.id,
         ),
       ),
     );

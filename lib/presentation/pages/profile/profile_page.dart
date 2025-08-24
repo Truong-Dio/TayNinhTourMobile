@@ -37,7 +37,7 @@ class ProfilePage extends StatelessWidget {
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {
           final user = authProvider.user;
-          
+
           if (user == null) {
             return const Center(
               child: Text('Không có thông tin người dùng'),
@@ -181,14 +181,14 @@ class ProfilePage extends StatelessWidget {
             _buildInfoRow(Icons.email, 'Email', user.email),
             const SizedBox(height: 12),
             _buildInfoRow(
-              Icons.phone, 
-              'Số điện thoại', 
+              Icons.phone,
+              'Số điện thoại',
               user.phoneNumber ?? 'Chưa cập nhật'
             ),
             const SizedBox(height: 12),
             _buildInfoRow(
-              Icons.verified_user, 
-              'Trạng thái', 
+              Icons.verified_user,
+              'Trạng thái',
               user.isActive ? 'Hoạt động' : 'Không hoạt động'
             ),
           ],
@@ -281,34 +281,21 @@ class ProfilePage extends StatelessWidget {
   }
 
   void _showEditProfileDialog(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.user;
+
+    if (user == null) return;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Chỉnh sửa thông tin'),
-        content: const Text('Tính năng này sẽ được cập nhật trong phiên bản tiếp theo.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Đóng'),
-          ),
-        ],
-      ),
+      builder: (context) => _EditProfileDialog(user: user),
     );
   }
 
   void _showChangePasswordDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Đổi mật khẩu'),
-        content: const Text('Tính năng này sẽ được cập nhật trong phiên bản tiếp theo.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Đóng'),
-          ),
-        ],
-      ),
+      builder: (context) => const _ChangePasswordDialog(),
     );
   }
 
@@ -358,6 +345,268 @@ class ProfilePage extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+class _EditProfileDialog extends StatefulWidget {
+  final user;
+
+  const _EditProfileDialog({required this.user});
+
+  @override
+  State<_EditProfileDialog> createState() => _EditProfileDialogState();
+}
+
+class _EditProfileDialogState extends State<_EditProfileDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _nameController;
+  late TextEditingController _phoneController;
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.user.name);
+    _phoneController = TextEditingController(text: widget.user.phoneNumber);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final success = await authProvider.editProfile(
+        _nameController.text,
+        _phoneController.text,
+      );
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        if (success) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Cập nhật thông tin thành công!')),
+          );
+        } else {
+          setState(() {
+            _errorMessage = authProvider.errorMessage ?? 'Đã có lỗi xảy ra.';
+          });
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Chỉnh sửa thông tin'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _nameController,
+              decoration: const InputDecoration(labelText: 'Họ và tên'),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Vui lòng nhập họ và tên';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _phoneController,
+              decoration: const InputDecoration(labelText: 'Số điện thoại'),
+              keyboardType: TextInputType.phone,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Vui lòng nhập số điện thoại';
+                }
+                if (!RegExp(r'^\d{10}$').hasMatch(value)) {
+                  return 'Số điện thoại không hợp lệ';
+                }
+                return null;
+              },
+            ),
+            if (_errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: Text(
+                  _errorMessage!,
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isLoading ? null : () => Navigator.pop(context),
+          child: const Text('Hủy'),
+        ),
+        ElevatedButton(
+          onPressed: _isLoading ? null : _submit,
+          child: _isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Lưu'),
+        ),
+      ],
+    );
+  }
+}
+
+
+class _ChangePasswordDialog extends StatefulWidget {
+  const _ChangePasswordDialog();
+
+  @override
+  State<_ChangePasswordDialog> createState() => _ChangePasswordDialogState();
+}
+
+class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _oldPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  @override
+  void dispose() {
+    _oldPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final success = await authProvider.changePassword(
+        _oldPasswordController.text,
+        _newPasswordController.text,
+      );
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        if (success) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Đổi mật khẩu thành công!')),
+          );
+        } else {
+          setState(() {
+            _errorMessage = authProvider.errorMessage ?? 'Đã có lỗi xảy ra.';
+          });
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Đổi mật khẩu'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _oldPasswordController,
+              decoration: const InputDecoration(labelText: 'Mật khẩu cũ'),
+              obscureText: true,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Vui lòng nhập mật khẩu cũ';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _newPasswordController,
+              decoration: const InputDecoration(labelText: 'Mật khẩu mới'),
+              obscureText: true,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Vui lòng nhập mật khẩu mới';
+                }
+                if (value.length < 6) {
+                  return 'Mật khẩu phải có ít nhất 6 ký tự';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _confirmPasswordController,
+              decoration: const InputDecoration(labelText: 'Xác nhận mật khẩu mới'),
+              obscureText: true,
+              validator: (value) {
+                if (value != _newPasswordController.text) {
+                  return 'Mật khẩu không khớp';
+                }
+                return null;
+              },
+            ),
+            if (_errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: Text(
+                  _errorMessage!,
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isLoading ? null : () => Navigator.pop(context),
+          child: const Text('Hủy'),
+        ),
+        ElevatedButton(
+          onPressed: _isLoading ? null : _submit,
+          child: _isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Lưu'),
+        ),
+      ],
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:logger/logger.dart';
 import '../../data/datasources/user_api_service.dart';
 import '../../data/models/user_tour_booking_model.dart';
 import '../../data/models/tour_feedback_model.dart';
+import '../../data/models/timeline_progress_models.dart';
 import '../../domain/entities/user_tour_booking.dart';
 import '../../domain/entities/tour_feedback.dart';
 import '../../core/constants/app_constants.dart';
@@ -28,7 +29,7 @@ class UserProvider extends ChangeNotifier {
   List<TourFeedback> _myFeedbacks = [];
   UserDashboardSummaryModel? _dashboardSummary;
   UserTourProgressModel? _tourProgress;
-  
+
   // Pagination
   int _currentPage = 1;
   int _totalPages = 1;
@@ -44,23 +45,23 @@ class UserProvider extends ChangeNotifier {
   List<TourFeedback> get myFeedbacks => _myFeedbacks;
   UserDashboardSummaryModel? get dashboardSummary => _dashboardSummary;
   UserTourProgressModel? get tourProgress => _tourProgress;
-  
+
   int get currentPage => _currentPage;
   int get totalPages => _totalPages;
   bool get hasNextPage => _hasNextPage;
   bool get hasPreviousPage => _hasPreviousPage;
 
   // Filtered bookings by status
-  List<UserTourBooking> get upcomingBookings => 
+  List<UserTourBooking> get upcomingBookings =>
       _bookings.where((booking) => booking.isUpcoming).toList();
-  
-  List<UserTourBooking> get ongoingBookings => 
+
+  List<UserTourBooking> get ongoingBookings =>
       _bookings.where((booking) => booking.isOngoing).toList();
-  
-  List<UserTourBooking> get completedBookings => 
+
+  List<UserTourBooking> get completedBookings =>
       _bookings.where((booking) => booking.isCompleted).toList();
-  
-  List<UserTourBooking> get cancelledBookings => 
+
+  List<UserTourBooking> get cancelledBookings =>
       _bookings.where((booking) => booking.isCancelled).toList();
 
   // Dashboard stats
@@ -69,7 +70,7 @@ class UserProvider extends ChangeNotifier {
   int get ongoingCount => ongoingBookings.length;
   int get completedCount => completedBookings.length;
   int get cancelledCount => cancelledBookings.length;
-  int get pendingFeedbacksCount => 
+  int get pendingFeedbacksCount =>
       completedBookings.where((booking) => !_hasFeedback(booking.id)).length;
 
   /// Get my tour bookings
@@ -85,7 +86,7 @@ class UserProvider extends ChangeNotifier {
       }
 
       _logger.i('Fetching user bookings - Page: $pageIndex, Size: $pageSize');
-      
+
       final response = await _userApiService.getMyBookings(
         pageIndex: pageIndex,
         pageSize: pageSize,
@@ -188,10 +189,10 @@ class UserProvider extends ChangeNotifier {
       );
 
       final feedback = await _userApiService.submitTourFeedback(request);
-      
+
       // Add to local feedback list
       _myFeedbacks.add(feedback.toEntity());
-      
+
       _clearError();
       _logger.i('Successfully submitted tour feedback');
       return true;
@@ -340,23 +341,23 @@ class UserProvider extends ChangeNotifier {
   }
 
   /// Get tour progress
-  Future<void> getTourProgress(String tourOperationId) async {
+  TimelineProgressResponse? _timelineProgressResponse;
+  TimelineProgressResponse? get timelineProgressResponse => _timelineProgressResponse;
+
+  Future<void> getTourSlotTimeline(String tourSlotId) async {
     try {
       _setLoading(true);
-      _logger.i('Fetching tour progress for: $tourOperationId');
+      _clearError();
+      _logger.i('Fetching tour timeline for slot: $tourSlotId');
 
-      final response = await _userApiService.getTourProgress(tourOperationId);
+      final result = await _userApiService.getUserTourSlotTimeline(tourSlotId);
 
-      if (response.success) {
-        _tourProgress = response.data;
-        _clearError();
-        _logger.i('Successfully loaded tour progress');
-      } else {
-        _setError('Không thể tải tiến độ tour: ${response.message}');
-      }
+      _timelineProgressResponse = result;
+      _logger.i('Successfully fetched tour timeline');
+
     } catch (e) {
-      _logger.e('Error fetching tour progress: $e');
-      _setError('Lỗi khi tải tiến độ tour: ${e.toString()}');
+      _errorMessage = 'Lỗi khi tải tiến độ tour: $e';
+      _logger.e('Error fetching tour timeline: $e');
     } finally {
       _setLoading(false);
     }

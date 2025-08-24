@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:retrofit/retrofit.dart';
 import 'package:json_annotation/json_annotation.dart';
 
+import '../models/timeline_progress_models.dart';
 import '../models/user_tour_booking_model.dart';
 import '../models/tour_feedback_model.dart';
 import '../../core/constants/api_constants.dart';
@@ -67,10 +68,7 @@ abstract class UserApiService {
   Future<UserDashboardResponse> getDashboardSummary();
 
   /// Get tour progress for ongoing tour
-  @GET('/UserTourBooking/tour-progress/{tourOperationId}')
-  Future<UserTourProgressResponse> getTourProgress(
-    @Path('tourOperationId') String tourOperationId,
-  );
+
 
   /// Get user's own feedbacks
   @GET('/TourBooking/my-feedbacks')
@@ -98,6 +96,12 @@ abstract class UserApiService {
     @Body() UserIncidentReportRequest request,
   );
 
+
+  @GET('/UserTourBooking/tour-slot/{tourSlotId}/timeline')
+  Future<TimelineProgressResponse> getUserTourSlotTimeline(
+    @Path('tourSlotId') String tourSlotId,
+  );
+
   /// Create support ticket (alternative for user incident reporting)
   @POST('/SupportTickets')
   @MultiPart()
@@ -120,7 +124,7 @@ class UserTourBookingDetailResponse {
     required this.data,
   });
 
-  factory UserTourBookingDetailResponse.fromJson(Map<String, dynamic> json) => 
+  factory UserTourBookingDetailResponse.fromJson(Map<String, dynamic> json) =>
       _$UserTourBookingDetailResponseFromJson(json);
 
   Map<String, dynamic> toJson() => _$UserTourBookingDetailResponseToJson(this);
@@ -144,7 +148,7 @@ class TourTimelineResponse {
     required this.fieldErrors,
   });
 
-  factory TourTimelineResponse.fromJson(Map<String, dynamic> json) => 
+  factory TourTimelineResponse.fromJson(Map<String, dynamic> json) =>
       _$TourTimelineResponseFromJson(json);
 
   Map<String, dynamic> toJson() => _$TourTimelineResponseToJson(this);
@@ -184,7 +188,7 @@ class TourTimelineData {
     required this.updatedAt,
   });
 
-  factory TourTimelineData.fromJson(Map<String, dynamic> json) => 
+  factory TourTimelineData.fromJson(Map<String, dynamic> json) =>
       _$TourTimelineDataFromJson(json);
 
   Map<String, dynamic> toJson() => _$TourTimelineDataToJson(this);
@@ -214,7 +218,7 @@ class TourTimelineItemData {
     required this.updatedAt,
   });
 
-  factory TourTimelineItemData.fromJson(Map<String, dynamic> json) => 
+  factory TourTimelineItemData.fromJson(Map<String, dynamic> json) =>
       _$TourTimelineItemDataFromJson(json);
 
   Map<String, dynamic> toJson() => _$TourTimelineItemDataToJson(this);
@@ -236,7 +240,7 @@ class SpecialtyShopData {
     this.phoneNumber,
   });
 
-  factory SpecialtyShopData.fromJson(Map<String, dynamic> json) => 
+  factory SpecialtyShopData.fromJson(Map<String, dynamic> json) =>
       _$SpecialtyShopDataFromJson(json);
 
   Map<String, dynamic> toJson() => _$SpecialtyShopDataToJson(this);
@@ -260,7 +264,7 @@ class UserIncidentReportRequest {
     this.location,
   });
 
-  factory UserIncidentReportRequest.fromJson(Map<String, dynamic> json) => 
+  factory UserIncidentReportRequest.fromJson(Map<String, dynamic> json) =>
       _$UserIncidentReportRequestFromJson(json);
 
   Map<String, dynamic> toJson() => _$UserIncidentReportRequestToJson(this);

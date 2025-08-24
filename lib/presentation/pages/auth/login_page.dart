@@ -7,6 +7,7 @@ import 'package:glassmorphism/glassmorphism.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/loading_overlay.dart';
 import '../../../core/constants/app_constants.dart';
+import 'forgot_password_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -52,7 +53,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    
+
     return Scaffold(
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {
@@ -108,9 +109,9 @@ class _LoginPageState extends State<LoginPage> {
                             ).animate()
                               .fadeIn(duration: 600.ms)
                               .scale(delay: 200.ms, duration: 400.ms),
-                            
+
                             const SizedBox(height: 30),
-                            
+
                             Text(
                               AppConstants.appName,
                               style: GoogleFonts.poppins(
@@ -123,9 +124,9 @@ class _LoginPageState extends State<LoginPage> {
                             ).animate()
                               .fadeIn(delay: 400.ms, duration: 600.ms)
                               .slideY(begin: 0.3, end: 0),
-                            
+
                             const SizedBox(height: 10),
-                            
+
                             Text(
                               'Ứng dụng quản lý tour\ncho Hướng dẫn viên',
                               style: GoogleFonts.inter(
@@ -139,9 +140,9 @@ class _LoginPageState extends State<LoginPage> {
                               .fadeIn(delay: 600.ms, duration: 600.ms),
                           ],
                         ),
-                      
+
                         const SizedBox(height: 50),
-                        
+
                         // Glassmorphic Form Container
                         GlassmorphicContainer(
                           width: size.width,
@@ -230,9 +231,9 @@ class _LoginPageState extends State<LoginPage> {
                                   ).animate()
                                     .fadeIn(delay: 800.ms, duration: 600.ms)
                                     .slideX(begin: -0.2, end: 0),
-                                  
+
                                   const SizedBox(height: 20),
-                                  
+
                                   // Password Field
                                   TextFormField(
                                     controller: _passwordController,
@@ -302,9 +303,9 @@ class _LoginPageState extends State<LoginPage> {
                                   ).animate()
                                     .fadeIn(delay: 1000.ms, duration: 600.ms)
                                     .slideX(begin: -0.2, end: 0),
-                                  
+
                                   const SizedBox(height: 35),
-                                  
+
                                   // Login Button
                                   Container(
                                     width: double.infinity,
@@ -357,16 +358,38 @@ class _LoginPageState extends State<LoginPage> {
                                   ).animate()
                                     .fadeIn(delay: 1200.ms, duration: 600.ms)
                                     .scale(delay: 1200.ms, duration: 400.ms),
-                      
+
                                 ],
                               ),
                             ),
                           ),
                         ).animate()
                           .fadeIn(delay: 700.ms, duration: 800.ms),
-                        
-                        const SizedBox(height: 30),
-                        
+
+                        const SizedBox(height: 16),
+
+                        // Forgot Password Button
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const ForgotPasswordPage()),
+                              );
+                            },
+                            child: Text(
+                              'Quên mật khẩu?',
+                              style: GoogleFonts.inter(
+                                color: Colors.white.withOpacity(0.9),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
                         // Error Message
                         if (authProvider.errorMessage != null)
                           Container(
@@ -402,9 +425,9 @@ class _LoginPageState extends State<LoginPage> {
                           ).animate()
                             .fadeIn(duration: 400.ms)
                             .shake(delay: 200.ms, duration: 400.ms),
-                        
+
                         const SizedBox(height: 40),
-                        
+
                         // Footer
                         Text(
                           'Phiên bản ${AppConstants.appVersion}',
@@ -416,7 +439,7 @@ class _LoginPageState extends State<LoginPage> {
                           textAlign: TextAlign.center,
                         ).animate()
                           .fadeIn(delay: 1400.ms, duration: 600.ms),
-                        
+
                         const SizedBox(height: 20),
                       ],
                     ),

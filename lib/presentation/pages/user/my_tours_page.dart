@@ -10,6 +10,7 @@ import '../../widgets/user/user_modern_tour_card.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../domain/entities/user_tour_booking.dart';
+import 'user_tour_details_page.dart';
 
 class MyToursPage extends StatefulWidget {
   const MyToursPage({super.key});
@@ -352,9 +353,11 @@ class _MyToursPageState extends State<MyToursPage> with SingleTickerProviderStat
   }
 
   void _showTourDetails(UserTourBooking booking) {
-    // TODO: Navigate to tour details page
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Chi tiết tour: ${booking.tourOperation.tourTitle}')),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => UserTourDetailsPage(bookingId: booking.id),
+      ),
     );
   }
 
@@ -454,11 +457,11 @@ class _MyToursPageState extends State<MyToursPage> with SingleTickerProviderStat
 
   // Modern UI Action Handlers
   void _viewTourDetails(UserTourBooking booking) {
-    // Navigate to tour details page
-    Navigator.pushNamed(
+    Navigator.push(
       context,
-      '/tour-details',
-      arguments: booking.tourOperationId,
+      MaterialPageRoute(
+        builder: (context) => UserTourDetailsPage(bookingId: booking.id),
+      ),
     );
   }
 

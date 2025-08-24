@@ -5,6 +5,7 @@ import '../../core/constants/app_constants.dart';
 class UserTourBooking extends Equatable {
   final String id;
   final String tourOperationId;
+  final String? tourSlotId;
   final String userId;
   final int numberOfGuests;
   final double originalPrice;
@@ -37,6 +38,7 @@ class UserTourBooking extends Equatable {
   const UserTourBooking({
     required this.id,
     required this.tourOperationId,
+    this.tourSlotId,
     required this.userId,
     required this.numberOfGuests,
     required this.originalPrice,
@@ -71,6 +73,7 @@ class UserTourBooking extends Equatable {
   List<Object?> get props => [
         id,
         tourOperationId,
+        tourSlotId,
         userId,
         numberOfGuests,
         originalPrice,
@@ -194,6 +197,7 @@ class UserTourBooking extends Equatable {
   UserTourBooking copyWith({
     String? id,
     String? tourOperationId,
+    String? tourSlotId,
     String? userId,
     int? numberOfGuests,
     double? originalPrice,
@@ -226,6 +230,7 @@ class UserTourBooking extends Equatable {
     return UserTourBooking(
       id: id ?? this.id,
       tourOperationId: tourOperationId ?? this.tourOperationId,
+      tourSlotId: tourSlotId ?? this.tourSlotId,
       userId: userId ?? this.userId,
       numberOfGuests: numberOfGuests ?? this.numberOfGuests,
       originalPrice: originalPrice ?? this.originalPrice,

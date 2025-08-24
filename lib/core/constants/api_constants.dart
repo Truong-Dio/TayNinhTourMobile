@@ -9,6 +9,12 @@ class ApiConstants {
   // Authentication endpoints (corrected path)
   static const String login = '/Authentication/login';
   static const String refreshToken = '/Authentication/refresh-token';
+  static const String sendOtpResetPassword = '/Authentication/send-otp-reset-password';
+  static const String resetPassword = '/Authentication/reset-password';
+
+  // Account management endpoints
+  static const String changePassword = '/Account/change-password';
+  static const String editProfile = '/Account/edit-profile';
 
   // Core HDV Tour Guide endpoints (6 endpoints theo plan)
   static const String myActiveTours = '/TourGuide/my-active-tours';
