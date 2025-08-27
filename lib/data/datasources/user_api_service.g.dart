@@ -587,13 +587,14 @@ class _UserApiService implements UserApiService {
   }
 
   @override
-  Future<TimelineProgressResponse> getUserTourSlotTimeline(
+  Future<Map<String, dynamic>> getUserTourSlotTimelineRaw(
       String tourSlotId) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
-    final _headers = <String, dynamic>{};
+    final _headers = <String, dynamic>{r'No-Auth': 'true'};
+    _headers.removeWhere((k, v) => v == null);
     const Map<String, dynamic>? _data = null;
-    final _options = _setStreamType<TimelineProgressResponse>(Options(
+    final _options = _setStreamType<Map<String, dynamic>>(Options(
       method: 'GET',
       headers: _headers,
       extra: _extra,
@@ -610,14 +611,8 @@ class _UserApiService implements UserApiService {
           baseUrl,
         )));
     final _result = await _dio.fetch<Map<String, dynamic>>(_options);
-    late TimelineProgressResponse _value;
-    try {
-      _value = TimelineProgressResponse.fromJson(_result.data!);
-    } on Object catch (e, s) {
-      errorLogger?.logError(e, s, _options);
-      rethrow;
-    }
-    return _value;
+    final value = _result.data!;
+    return value;
   }
 
   @override

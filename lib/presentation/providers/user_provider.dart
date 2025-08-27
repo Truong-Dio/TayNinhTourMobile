@@ -350,10 +350,80 @@ class UserProvider extends ChangeNotifier {
       _clearError();
       _logger.i('Fetching tour timeline for slot: $tourSlotId');
 
-      final result = await _userApiService.getUserTourSlotTimeline(tourSlotId);
+      final rawResponse = await _userApiService.getUserTourSlotTimelineRaw(tourSlotId);
 
-      _timelineProgressResponse = result;
-      _logger.i('Successfully fetched tour timeline');
+      // Parse the API response wrapper
+      if (rawResponse['statusCode'] != 200) {
+        throw Exception(rawResponse['message'] ?? 'Unknown error');
+      }
+
+      final data = rawResponse['data'];
+      if (data == null) {
+        throw Exception('No data returned from API');
+      }
+
+      // Extract timeline array from the response
+      final timelineData = data['timeline'] as List<dynamic>?;
+      if (timelineData == null || timelineData.isEmpty) {
+        // Create empty response if no timeline data
+        _timelineProgressResponse = TimelineProgressResponse(
+          timeline: [],
+          summary: TimelineProgressSummaryDto(
+            tourSlotId: tourSlotId,
+            totalItems: 0,
+            completedItems: 0,
+          ),
+          tourSlot: TourSlotInfoDto(
+            id: tourSlotId,
+            tourDate: DateTime.now().toIso8601String().split('T')[0],
+            currentBookings: 0,
+            maxGuests: 0,
+            status: 'Unknown',
+          ),
+          tourDetails: TourDetailsInfoDto(
+            id: '',
+            title: 'Unknown Tour',
+            description: '',
+            status: 'Unknown',
+            imageUrls: [],
+          ),
+          canModifyProgress: false,
+          lastUpdated: DateTime.now(),
+        );
+      } else {
+        // Convert timeline items
+        final timelineItems = timelineData.map((item) =>
+          TimelineWithProgressDto.fromJson(item as Map<String, dynamic>)
+        ).toList();
+
+        // Create response with available data
+        _timelineProgressResponse = TimelineProgressResponse(
+          timeline: timelineItems,
+          summary: TimelineProgressSummaryDto(
+            tourSlotId: tourSlotId,
+            totalItems: timelineItems.length,
+            completedItems: timelineItems.where((item) => item.isCompleted).length,
+          ),
+          tourSlot: TourSlotInfoDto(
+            id: tourSlotId,
+            tourDate: DateTime.now().toIso8601String().split('T')[0],
+            currentBookings: 0,
+            maxGuests: 0,
+            status: 'Active',
+          ),
+          tourDetails: TourDetailsInfoDto(
+            id: '',
+            title: 'Tour Details',
+            description: '',
+            status: 'Active',
+            imageUrls: [],
+          ),
+          canModifyProgress: true,
+          lastUpdated: DateTime.now(),
+        );
+      }
+
+      _logger.i('Successfully fetched and parsed tour timeline');
 
     } catch (e) {
       _errorMessage = 'Lỗi khi tải tiến độ tour: $e';

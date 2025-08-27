@@ -1,4 +1,4 @@
-import 'package:dio/dio.dart';
+import 'package:dio/dio.dart' hide Headers;
 import 'package:retrofit/retrofit.dart';
 import 'package:json_annotation/json_annotation.dart';
 
@@ -98,7 +98,8 @@ abstract class UserApiService {
 
 
   @GET('/UserTourBooking/tour-slot/{tourSlotId}/timeline')
-  Future<TimelineProgressResponse> getUserTourSlotTimeline(
+  @Headers({'No-Auth': 'true'}) // Public endpoint
+  Future<Map<String, dynamic>> getUserTourSlotTimelineRaw(
     @Path('tourSlotId') String tourSlotId,
   );
 

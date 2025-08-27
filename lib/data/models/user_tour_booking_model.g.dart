@@ -11,6 +11,7 @@ UserTourBookingModel _$UserTourBookingModelFromJson(
     UserTourBookingModel(
       id: json['id'] as String,
       tourOperationId: json['tourOperationId'] as String,
+      tourSlotId: json['tourSlotId'] as String?,
       userId: json['userId'] as String,
       numberOfGuests: (json['numberOfGuests'] as num).toInt(),
       originalPrice: (json['originalPrice'] as num).toDouble(),
@@ -56,6 +57,7 @@ Map<String, dynamic> _$UserTourBookingModelToJson(
     <String, dynamic>{
       'id': instance.id,
       'tourOperationId': instance.tourOperationId,
+      'tourSlotId': instance.tourSlotId,
       'userId': instance.userId,
       'numberOfGuests': instance.numberOfGuests,
       'originalPrice': instance.originalPrice,

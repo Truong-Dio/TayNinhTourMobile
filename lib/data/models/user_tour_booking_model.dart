@@ -8,6 +8,7 @@ class UserTourBookingModel extends UserTourBooking {
   const UserTourBookingModel({
     required super.id,
     required super.tourOperationId,
+    super.tourSlotId,
     required super.userId,
     required super.numberOfGuests,
     required super.originalPrice,
@@ -48,6 +49,7 @@ class UserTourBookingModel extends UserTourBooking {
       return UserTourBookingModel(
         id: cleanedJson['id'] as String,
         tourOperationId: cleanedJson['tourOperationId'] as String,
+        tourSlotId: cleanedJson['tourSlotId'] as String?,
         userId: cleanedJson['userId'] as String,
         numberOfGuests: (cleanedJson['numberOfGuests'] as num).toInt(),
         originalPrice: (cleanedJson['originalPrice'] as num).toDouble(),
@@ -119,6 +121,7 @@ class UserTourBookingModel extends UserTourBooking {
     return UserTourBookingModel(
       id: booking.id,
       tourOperationId: booking.tourOperationId,
+      tourSlotId: booking.tourSlotId,
       userId: booking.userId,
       numberOfGuests: booking.numberOfGuests,
       originalPrice: booking.originalPrice,
@@ -154,6 +157,7 @@ class UserTourBookingModel extends UserTourBooking {
     return UserTourBooking(
       id: id,
       tourOperationId: tourOperationId,
+      tourSlotId: tourSlotId,
       userId: userId,
       numberOfGuests: numberOfGuests,
       originalPrice: originalPrice,

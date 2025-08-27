@@ -174,6 +174,12 @@ class _AuthInterceptor extends Interceptor {
   
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+    // If the request has the 'No-Auth' header, don't add the token.
+    if (options.headers['No-Auth'] == 'true') {
+      options.headers.remove('No-Auth'); // Clean up the header
+      return handler.next(options);
+    }
+
     try {
       final token = await _storage.read(key: AppConstants.accessTokenKey);
       if (token != null) {
@@ -182,8 +188,8 @@ class _AuthInterceptor extends Interceptor {
     } catch (e) {
       _logger.e('Error adding auth token: $e');
     }
-    
-    handler.next(options);
+
+    return handler.next(options);
   }
 }
 
