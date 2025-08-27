@@ -6,7 +6,7 @@ part 'specialty_shop_model.g.dart';
 @JsonSerializable()
 class SpecialtyShopModel {
   final String id;
-  final String shopName;
+  final String? shopName;
   final String? description;
   final String? address;
   final String? phoneNumber;
@@ -16,7 +16,7 @@ class SpecialtyShopModel {
   final String? openingHours;
   final String? notes;
   final double? rating;
-  final String shopType;
+  final String? shopType;
   @JsonKey(name: 'isShopActive')
   final bool isActive;
   final DateTime createdAt;
@@ -24,7 +24,7 @@ class SpecialtyShopModel {
 
   SpecialtyShopModel({
     required this.id,
-    required this.shopName,
+    this.shopName,
     this.description,
     this.address,
     this.phoneNumber,
@@ -34,7 +34,7 @@ class SpecialtyShopModel {
     this.openingHours,
     this.notes,
     this.rating,
-    required this.shopType,
+    this.shopType,
     required this.isActive,
     required this.createdAt,
     this.updatedAt,
@@ -46,7 +46,7 @@ class SpecialtyShopModel {
   Map<String, dynamic> toJson() => _$SpecialtyShopModelToJson(this);
 
   /// Get display name for the shop
-  String get displayName => shopName;
+  String get displayName => shopName ?? 'Unnamed Shop';
 
   /// Get contact info summary
   String get contactInfo {

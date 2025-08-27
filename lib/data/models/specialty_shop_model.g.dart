@@ -9,7 +9,7 @@ part of 'specialty_shop_model.dart';
 SpecialtyShopModel _$SpecialtyShopModelFromJson(Map<String, dynamic> json) =>
     SpecialtyShopModel(
       id: json['id'] as String,
-      shopName: json['shopName'] as String,
+      shopName: json['shopName'] as String?,
       description: json['description'] as String?,
       address: json['address'] as String?,
       phoneNumber: json['phoneNumber'] as String?,
@@ -19,7 +19,7 @@ SpecialtyShopModel _$SpecialtyShopModelFromJson(Map<String, dynamic> json) =>
       openingHours: json['openingHours'] as String?,
       notes: json['notes'] as String?,
       rating: (json['rating'] as num?)?.toDouble(),
-      shopType: json['shopType'] as String,
+      shopType: json['shopType'] as String?,
       isActive: json['isShopActive'] as bool,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: json['updatedAt'] == null

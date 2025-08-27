@@ -154,8 +154,8 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
           specialtyShopId: item.specialtyShop?.id,
           specialtyShop: item.specialtyShop != null ? SpecialtyShopData(
             id: item.specialtyShop!.id,
-            shopName: item.specialtyShop!.shopName,
-            shopType: item.specialtyShop!.shopType,
+            shopName: item.specialtyShop!.shopName ?? 'Unnamed Shop',
+            shopType: item.specialtyShop!.shopType ?? 'Unknown',
             location: item.specialtyShop!.address ?? '', // Use address as location
             description: item.specialtyShop!.description,
             isShopActive: item.specialtyShop!.isActive,

@@ -41,32 +41,46 @@ class TimelineProgressWidget extends StatelessWidget {
     }
 
     if (timelineItems.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
+            const Icon(
               Icons.timeline,
               size: 64,
               color: Colors.grey,
             ),
-            SizedBox(height: 16),
-            Text(
+            const SizedBox(height: 16),
+            const Text(
               'Chưa có lịch trình nào',
               style: TextStyle(
                 fontSize: 18,
                 color: Colors.grey,
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
-              'Lịch trình sẽ được hiển thị khi tour bắt đầu',
-              style: TextStyle(
+              selectedTour?.currentSlot != null
+                ? 'Tour slot chưa được assign lịch trình chi tiết.\nVui lòng liên hệ admin để được hỗ trợ.'
+                : 'Lịch trình sẽ được hiển thị khi tour được assign slot cụ thể.',
+              style: const TextStyle(
                 fontSize: 14,
                 color: Colors.grey,
               ),
               textAlign: TextAlign.center,
             ),
+            if (selectedTour?.currentSlot != null) ...[
+              const SizedBox(height: 16),
+              Text(
+                'Tour Slot ID: ${selectedTour!.currentSlot!.id}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[400],
+                  fontFamily: 'monospace',
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ],
         ),
       );

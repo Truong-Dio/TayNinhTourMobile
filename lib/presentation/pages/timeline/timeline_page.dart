@@ -64,9 +64,39 @@ class _TimelinePageState extends State<TimelinePage> {
     });
 
     final tourGuideProvider = context.read<TourGuideProvider>();
-    // Note: We need tourDetailsId, but we have operationId.
-    // For now, we'll use the tour ID assuming it's the same
-    await tourGuideProvider.getTourTimeline(tour.id);
+
+    try {
+      // Use new API with TourSlot ID if available, otherwise fallback to old API
+      if (tour.currentSlot != null) {
+        print('🔍 Loading timeline for TourSlot: ${tour.currentSlot!.id}');
+        // Use new API for per-slot timeline with progress
+        await tourGuideProvider.getTourSlotTimelineWithProgress(tour.currentSlot!.id);
+      } else {
+        print('🔍 No current slot, loading timeline for TourOperation: ${tour.id}');
+        // Fallback to old API for backward compatibility
+        await tourGuideProvider.getTourTimeline(tour.id);
+      }
+    } catch (e) {
+      print('❌ Error loading timeline: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Không thể tải timeline: $e'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+
+        // Try fallback to old API if new API fails
+        if (tour.currentSlot != null) {
+          print('🔄 Trying fallback to old API...');
+          try {
+            await tourGuideProvider.getTourTimeline(tour.id);
+          } catch (fallbackError) {
+            print('❌ Fallback also failed: $fallbackError');
+          }
+        }
+      }
+    }
 
     setState(() {
       _isLoadingTimeline = false;

@@ -99,7 +99,7 @@ abstract class UserApiService {
 
   @GET('/UserTourBooking/tour-slot/{tourSlotId}/timeline')
   @Headers({'No-Auth': 'true'}) // Public endpoint
-  Future<Map<String, dynamic>> getUserTourSlotTimelineRaw(
+  Future<dynamic> getUserTourSlotTimelineRaw(
     @Path('tourSlotId') String tourSlotId,
   );
 

@@ -727,7 +727,7 @@ class TourGuideProvider extends ChangeNotifier {
         completionNotes: item.completionNotes,
         specialtyShop: item.specialtyShop != null ? SpecialtyShop(
           id: item.specialtyShop!.id,
-          shopName: item.specialtyShop!.shopName,
+          shopName: item.specialtyShop!.shopName ?? 'Unnamed Shop',
           address: item.specialtyShop!.address ?? '',
           description: item.specialtyShop!.description,
         ) : null,

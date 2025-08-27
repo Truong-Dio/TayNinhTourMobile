@@ -587,14 +587,13 @@ class _UserApiService implements UserApiService {
   }
 
   @override
-  Future<Map<String, dynamic>> getUserTourSlotTimelineRaw(
-      String tourSlotId) async {
+  Future<dynamic> getUserTourSlotTimelineRaw(String tourSlotId) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
     final _headers = <String, dynamic>{r'No-Auth': 'true'};
     _headers.removeWhere((k, v) => v == null);
     const Map<String, dynamic>? _data = null;
-    final _options = _setStreamType<Map<String, dynamic>>(Options(
+    final _options = _setStreamType<dynamic>(Options(
       method: 'GET',
       headers: _headers,
       extra: _extra,
@@ -610,9 +609,9 @@ class _UserApiService implements UserApiService {
           _dio.options.baseUrl,
           baseUrl,
         )));
-    final _result = await _dio.fetch<Map<String, dynamic>>(_options);
-    final value = _result.data!;
-    return value;
+    final _result = await _dio.fetch(_options);
+    final _value = _result.data;
+    return _value;
   }
 
   @override
