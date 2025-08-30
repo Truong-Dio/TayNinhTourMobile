@@ -11,6 +11,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../domain/entities/user_tour_booking.dart';
 import 'user_tour_details_page.dart';
+import 'tour_rating_page.dart';
 
 class MyToursPage extends StatefulWidget {
   const MyToursPage({super.key});
@@ -180,11 +181,15 @@ class _MyToursPageState extends State<MyToursPage> with SingleTickerProviderStat
         itemCount: bookings.length,
         itemBuilder: (context, index) {
           final booking = bookings[index];
+          final provider = Provider.of<UserProvider>(context, listen: false);
+          final hasExistingFeedback = provider.hasBookingFeedback(booking.id);
+
           return UserModernTourCard(
             booking: booking,
             onTap: () => _viewTourDetails(booking),
             onViewDetails: () => _viewTourDetails(booking),
-            onCancel: () => _cancelTour(booking),
+            onRate: () => _rateTour(booking),
+            hasExistingFeedback: hasExistingFeedback,
           );
         },
       ),
@@ -302,15 +307,6 @@ class _MyToursPageState extends State<MyToursPage> with SingleTickerProviderStat
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  if (booking.canCancel)
-                    TextButton.icon(
-                      onPressed: () => _cancelBooking(booking),
-                      icon: const Icon(Icons.cancel, size: 16),
-                      label: const Text('Hủy tour'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.red,
-                      ),
-                    ),
                   if (booking.canResendQR)
                     TextButton.icon(
                       onPressed: () => _resendQRTicket(booking),
@@ -361,34 +357,21 @@ class _MyToursPageState extends State<MyToursPage> with SingleTickerProviderStat
     );
   }
 
-  void _cancelBooking(UserTourBooking booking) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Xác nhận hủy tour'),
-        content: Text('Bạn có chắc chắn muốn hủy tour "${booking.tourOperation.tourTitle}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Không'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final userProvider = context.read<UserProvider>();
-              final success = await userProvider.cancelBooking(booking.id);
-              if (success && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Đã hủy tour thành công')),
-                );
-              }
-            },
-            child: const Text('Có'),
-          ),
-        ],
+  void _rateTour(UserTourBooking booking) async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TourRatingPage(booking: booking),
       ),
     );
+
+    // Refresh the list if rating was successful
+    if (result == true) {
+      _loadData();
+    }
   }
+
+
 
   void _resendQRTicket(UserTourBooking booking) async {
     final userProvider = context.read<UserProvider>();
@@ -465,56 +448,5 @@ class _MyToursPageState extends State<MyToursPage> with SingleTickerProviderStat
     );
   }
 
-  void _cancelTour(UserTourBooking booking) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Xác nhận hủy tour'),
-        content: Text('Bạn có chắc chắn muốn hủy tour "${booking.tourOperation.tourTitle ?? 'này'}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Không'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _performCancelTour(booking);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Hủy tour'),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Future<void> _performCancelTour(UserTourBooking booking) async {
-    try {
-      final userProvider = context.read<UserProvider>();
-      await userProvider.cancelBooking(booking.id!);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đã hủy tour thành công'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        _loadData(); // Refresh data
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi khi hủy tour: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
 }

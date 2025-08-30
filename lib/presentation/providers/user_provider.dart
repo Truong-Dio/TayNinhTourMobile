@@ -7,6 +7,7 @@ import '../../data/models/tour_feedback_model.dart';
 import '../../data/models/timeline_progress_models.dart';
 import '../../domain/entities/user_tour_booking.dart';
 import '../../domain/entities/tour_feedback.dart';
+import '../../domain/entities/create_tour_feedback_data.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/errors/failures.dart';
 
@@ -110,6 +111,11 @@ class UserProvider extends ChangeNotifier {
 
         _clearError();
         _logger.i('Successfully loaded ${newBookings.length} bookings');
+
+        // Also load feedbacks if this is the first page or refresh
+        if (pageIndex == 1 || refresh) {
+          await getMyFeedbacks(refresh: true);
+        }
       } else {
         _setError('Không thể tải danh sách tour: ${response.message}');
       }
@@ -166,6 +172,22 @@ class UserProvider extends ChangeNotifier {
       _setLoading(false);
     }
   }
+
+  /// Check if booking already has feedback
+  bool hasBookingFeedback(String bookingId) {
+    return _myFeedbacks.any((feedback) => feedback.bookingId == bookingId);
+  }
+
+  /// Get feedback for a specific booking
+  TourFeedback? getBookingFeedback(String bookingId) {
+    try {
+      return _myFeedbacks.firstWhere((feedback) => feedback.bookingId == bookingId);
+    } catch (e) {
+      return null;
+    }
+  }
+
+
 
   /// Submit tour feedback
   Future<bool> submitTourFeedback(CreateTourFeedbackData feedbackData) async {

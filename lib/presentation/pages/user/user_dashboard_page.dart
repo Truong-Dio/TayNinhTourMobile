@@ -14,6 +14,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import 'my_tours_page.dart';
 import 'my_feedbacks_page.dart';
+import '../webview/tours_webview_page.dart';
 
 
 class UserDashboardPage extends StatefulWidget {
@@ -806,6 +807,14 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
     );
   }
 
+  void _navigateToExploreTours(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const ToursWebViewPage(),
+      ),
+    );
+  }
+
   // Modern UI Methods
   Widget _buildModernWelcomeCard(BuildContext context, UserProvider userProvider) {
     final authProvider = context.read<AuthProvider>();
@@ -949,6 +958,15 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 12),
+        // Nút khám phá nhiều tour hơn
+        UserModernActionCard(
+          title: 'Khám phá nhiều tour hơn',
+          subtitle: 'Xem tất cả tours có sẵn',
+          icon: Icons.explore,
+          color: Colors.purple,
+          onTap: () => _navigateToExploreTours(context),
         ),
       ],
     );

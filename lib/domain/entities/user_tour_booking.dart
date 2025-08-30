@@ -114,14 +114,19 @@ class UserTourBooking extends Equatable {
     return userTourStatus == AppConstants.tourStatusUpcoming;
   }
 
-  /// Check if tour is ongoing
-  bool get isOngoing {
-    return userTourStatus == AppConstants.tourStatusOngoing;
-  }
-
   /// Check if tour is completed
   bool get isCompleted {
     return userTourStatus == AppConstants.tourStatusCompleted;
+  }
+
+  /// Check if booking can be rated (completed and not cancelled)
+  bool get canBeRated {
+    return status == 'Completed';
+  }
+
+  /// Check if tour is ongoing
+  bool get isOngoing {
+    return userTourStatus == AppConstants.tourStatusOngoing;
   }
 
   /// Check if tour is cancelled
@@ -147,11 +152,6 @@ class UserTourBooking extends Equatable {
   /// Get formatted total price
   String get formattedTotalPrice {
     return '${totalPrice.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} VNĐ';
-  }
-
-  /// Check if tour can be rated/reviewed
-  bool get canBeRated {
-    return isCompleted;
   }
 
   /// Get check-in progress percentage

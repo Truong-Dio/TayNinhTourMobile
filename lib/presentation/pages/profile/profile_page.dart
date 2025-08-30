@@ -26,11 +26,25 @@ class ProfilePage extends StatelessWidget {
         shadowColor: AppTheme.primaryColor.withOpacity(0.3),
         automaticallyImplyLeading: false,
         actions: [
-          IconButton(
+          PopupMenuButton<String>(
             icon: const Icon(Icons.settings),
-            onPressed: () {
-              // Navigate to settings
+            onSelected: (value) {
+              if (value == 'logout') {
+                _showLogoutDialog(context, Provider.of<AuthProvider>(context, listen: false));
+              }
             },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Đăng xuất'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),

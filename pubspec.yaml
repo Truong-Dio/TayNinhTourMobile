@@ -35,6 +35,10 @@ dependencies:
   image_picker: ^1.1.2
   permission_handler: ^11.3.1
 
+  # WebView
+  webview_flutter: ^4.4.4
+  url_launcher: ^6.3.1
+
   # UI Components
   flutter_spinkit: ^5.2.1
   cached_network_image: ^3.4.1

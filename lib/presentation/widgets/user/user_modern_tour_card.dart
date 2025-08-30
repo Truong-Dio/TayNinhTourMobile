@@ -7,14 +7,16 @@ class UserModernTourCard extends StatelessWidget {
   final UserTourBooking booking;
   final VoidCallback? onTap;
   final VoidCallback? onViewDetails;
-  final VoidCallback? onCancel;
+  final VoidCallback? onRate;
+  final bool hasExistingFeedback;
 
   const UserModernTourCard({
     super.key,
     required this.booking,
     this.onTap,
     this.onViewDetails,
-    this.onCancel,
+    this.onRate,
+    this.hasExistingFeedback = false,
   });
 
   @override
@@ -106,14 +108,14 @@ class UserModernTourCard extends StatelessWidget {
                         onViewDetails,
                       ),
                     ),
-                    if (_canCancel()) ...[
+                    if (_shouldShowRatingButton()) ...[
                       const SizedBox(width: 12),
                       Expanded(
                         child: _buildActionButton(
-                          'Hủy tour',
-                          Icons.cancel_outlined,
-                          Colors.red,
-                          onCancel,
+                          hasExistingFeedback ? 'Đã đánh giá' : 'Đánh giá',
+                          hasExistingFeedback ? Icons.star : Icons.star_border,
+                          hasExistingFeedback ? Colors.amber : Colors.orange,
+                          hasExistingFeedback ? null : onRate,
                         ),
                       ),
                     ],
@@ -307,10 +309,7 @@ class UserModernTourCard extends StatelessWidget {
     }
   }
 
-  bool _canCancel() {
-    return booking.status?.toLowerCase() == 'confirmed' ||
-           booking.status?.toLowerCase() == 'pending';
-  }
+
 
   String _formatDate(DateTime? date) {
     if (date == null) return 'Chưa xác định';
@@ -325,5 +324,10 @@ class UserModernTourCard extends StatelessWidget {
   String _formatCurrency(double? amount) {
     if (amount == null) return '0 VNĐ';
     return '${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} VNĐ';
+  }
+
+  /// Check if rating button should be shown
+  bool _shouldShowRatingButton() {
+    return booking.canBeRated;
   }
 }
