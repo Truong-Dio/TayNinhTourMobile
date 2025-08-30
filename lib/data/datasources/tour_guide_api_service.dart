@@ -10,6 +10,7 @@ import '../models/tour_invitation_model.dart';
 import '../models/tour_slot_model.dart';
 import '../models/tour_guide_slot_models.dart';
 import '../models/individual_qr_models.dart';
+import '../models/unified_checkin_models.dart';
 import '../../core/constants/api_constants.dart';
 
 part 'tour_guide_api_service.g.dart';
@@ -80,7 +81,12 @@ abstract class TourGuideApiService {
     @Body() CheckInGuestByQRRequest request,
   );
 
-
+  /// ✅ NEW: Unified check-in endpoint - Tự động nhận diện và xử lý QR code
+  /// Hỗ trợ cả Individual Guest QR và Group Representative QR
+  @POST('/TourGuide/check-in-unified')
+  Future<UnifiedCheckInResponse> unifiedCheckIn(
+    @Body() UnifiedCheckInRequest request,
+  );
 
   /// ✅ NEW: Check-in group by QR code
   @POST('/TourGuide/check-in-group')

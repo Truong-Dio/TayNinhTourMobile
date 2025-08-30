@@ -35,6 +35,18 @@ class _IndividualGuestListWidgetState extends State<IndividualGuestListWidget> {
   List<TourBookingGuestModel> _getFilteredGuests(List<TourBookingGuestModel> guests) {
     var filtered = guests;
 
+    // ✅ NEW: Only show INDIVIDUAL guests (not group representatives and from single-guest bookings)
+    // Tab "Khách lẻ" chỉ show khách lẻ không thuộc booking đại diện
+    filtered = filtered.where((guest) {
+      // Logic: Show guests from bookings with only 1 guest (individual bookings)
+      // OR guests who are not group representatives in multi-guest bookings
+      final isFromSingleGuestBooking = (guest.totalGuests ?? 1) == 1;
+      final isNotGroupRepresentative = !(guest.isGroupRepresentative ?? false);
+
+      // Show if: single guest booking OR not a group representative
+      return isFromSingleGuestBooking || isNotGroupRepresentative;
+    }).toList();
+
     // Apply status filter
     if (_filterStatus == 'checked-in') {
       filtered = filtered.where((g) => g.isCheckedIn).toList();
@@ -61,6 +73,17 @@ class _IndividualGuestListWidgetState extends State<IndividualGuestListWidget> {
     });
 
     return filtered;
+  }
+
+  /// Check if guest can check-in individually (not part of group booking)
+  bool _canGuestCheckIn(TourBookingGuestModel guest) {
+    // Allow check-in if:
+    // 1. Guest is from single-guest booking (totalGuests == 1)
+    // 2. Guest is not a group representative
+    final isFromSingleGuestBooking = (guest.totalGuests ?? 1) == 1;
+    final isNotGroupRepresentative = !(guest.isGroupRepresentative ?? false);
+
+    return isFromSingleGuestBooking || isNotGroupRepresentative;
   }
 
   @override
@@ -310,7 +333,7 @@ class _IndividualGuestListWidgetState extends State<IndividualGuestListWidget> {
                   color: Colors.green,
                   size: 24,
                 )
-              else
+              else if (_canGuestCheckIn(guest))
                 IconButton(
                   onPressed: () => widget.onGuestTap(guest),
                   icon: const Icon(Icons.qr_code_scanner),
@@ -319,6 +342,12 @@ class _IndividualGuestListWidgetState extends State<IndividualGuestListWidget> {
                   constraints: const BoxConstraints(),
                   color: Theme.of(context).primaryColor,
                   tooltip: 'Check-in',
+                )
+              else
+                Icon(
+                  Icons.group,
+                  color: Colors.grey[400],
+                  size: 20,
                 ),
             ],
           ),

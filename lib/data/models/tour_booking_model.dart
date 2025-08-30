@@ -20,6 +20,7 @@ class TourBookingModel extends TourBooking {
     super.customerName,
     super.tourSlotDate,
     super.tourSlotId,
+    super.bookingType,
   });
   
   factory TourBookingModel.fromJson(Map<String, dynamic> json) => _$TourBookingModelFromJson(json);
@@ -42,6 +43,7 @@ class TourBookingModel extends TourBooking {
       customerName: customerName,
       tourSlotDate: tourSlotDate,
       tourSlotId: tourSlotId,
+      bookingType: bookingType,
     );
   }
 }

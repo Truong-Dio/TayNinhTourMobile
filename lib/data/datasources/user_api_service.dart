@@ -36,7 +36,7 @@ abstract class UserApiService {
 
   /// Submit tour feedback
   @POST('/TourBooking/Feedback-Tour')
-  Future<TourFeedbackModel> submitTourFeedback(
+  Future<CreateTourFeedbackResponse> submitTourFeedback(
     @Body() CreateTourFeedbackRequest request,
   );
 

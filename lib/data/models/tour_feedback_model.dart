@@ -26,6 +26,30 @@ class CreateTourFeedbackRequest {
 }
 
 @JsonSerializable()
+class CreateTourFeedbackResponse {
+  final String feedBackId;
+  final String bookingId;
+  final String slotId;
+  final int statusCode;
+  final String message;
+  final bool success;
+
+  const CreateTourFeedbackResponse({
+    required this.feedBackId,
+    required this.bookingId,
+    required this.slotId,
+    required this.statusCode,
+    required this.message,
+    required this.success,
+  });
+
+  factory CreateTourFeedbackResponse.fromJson(Map<String, dynamic> json) =>
+      _$CreateTourFeedbackResponseFromJson(json);
+
+  Map<String, dynamic> toJson() => _$CreateTourFeedbackResponseToJson(this);
+}
+
+@JsonSerializable()
 class UpdateTourFeedbackRequest {
   final int? tourRating;
   final String? tourComment;

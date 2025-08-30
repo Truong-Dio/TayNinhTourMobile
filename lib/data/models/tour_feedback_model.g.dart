@@ -26,6 +26,28 @@ Map<String, dynamic> _$CreateTourFeedbackRequestToJson(
       'guideComment': instance.guideComment,
     };
 
+CreateTourFeedbackResponse _$CreateTourFeedbackResponseFromJson(
+        Map<String, dynamic> json) =>
+    CreateTourFeedbackResponse(
+      feedBackId: json['feedBackId'] as String,
+      bookingId: json['bookingId'] as String,
+      slotId: json['slotId'] as String,
+      statusCode: (json['statusCode'] as num).toInt(),
+      message: json['message'] as String,
+      success: json['success'] as bool,
+    );
+
+Map<String, dynamic> _$CreateTourFeedbackResponseToJson(
+        CreateTourFeedbackResponse instance) =>
+    <String, dynamic>{
+      'feedBackId': instance.feedBackId,
+      'bookingId': instance.bookingId,
+      'slotId': instance.slotId,
+      'statusCode': instance.statusCode,
+      'message': instance.message,
+      'success': instance.success,
+    };
+
 UpdateTourFeedbackRequest _$UpdateTourFeedbackRequestFromJson(
         Map<String, dynamic> json) =>
     UpdateTourFeedbackRequest(

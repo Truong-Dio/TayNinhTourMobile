@@ -25,6 +25,12 @@ class _GuestListWidgetState extends State<GuestListWidget> {
 
   List<TourBooking> get _filteredBookings {
     var filtered = widget.bookings.where((booking) {
+      // ✅ NEW: Only show GROUP bookings (bookingType == "GroupRepresentative")
+      // Tab "Theo Booking" chỉ show bookings đại diện nhóm
+      // Handle missing bookingType: treat null/empty as Individual
+      final bookingType = booking.bookingType ?? "Individual";
+      final isGroupBooking = bookingType == "GroupRepresentative";
+
       // Search filter
       final matchesSearch = _searchQuery.isEmpty ||
           (booking.customerName?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
@@ -36,7 +42,7 @@ class _GuestListWidgetState extends State<GuestListWidget> {
           (_filterStatus == 'checked_in' && booking.isCheckedIn) ||
           (_filterStatus == 'not_checked_in' && !booking.isCheckedIn);
 
-      return matchesSearch && matchesStatus;
+      return isGroupBooking && matchesSearch && matchesStatus;
     }).toList();
 
     // Sort: not checked in first, then by booking date

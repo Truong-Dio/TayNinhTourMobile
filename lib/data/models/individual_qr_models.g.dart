@@ -114,6 +114,7 @@ TourBookingGuestModel _$TourBookingGuestModelFromJson(
       bookingId: json['bookingId'] as String?,
       customerName: json['customerName'] as String?,
       totalGuests: (json['totalGuests'] as num?)?.toInt(),
+      isGroupRepresentative: json['isGroupRepresentative'] as bool?,
     );
 
 Map<String, dynamic> _$TourBookingGuestModelToJson(
@@ -132,6 +133,7 @@ Map<String, dynamic> _$TourBookingGuestModelToJson(
       'bookingId': instance.bookingId,
       'customerName': instance.customerName,
       'totalGuests': instance.totalGuests,
+      'isGroupRepresentative': instance.isGroupRepresentative,
     };
 
 GroupBookingQR _$GroupBookingQRFromJson(Map<String, dynamic> json) =>

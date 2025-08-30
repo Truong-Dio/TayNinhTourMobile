@@ -107,6 +107,9 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
+  bool _prefetched = false;
+  String? _prefetchUserId;
+
   @override
   void initState() {
     super.initState();
@@ -114,6 +117,30 @@ class _AuthWrapperState extends State<AuthWrapper> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AuthProvider>().checkAuthStatus();
     });
+  }
+
+  Future<void> _prefetchForAuthenticatedUser(BuildContext context) async {
+    final auth = context.read<AuthProvider>();
+    final role = auth.user?.role;
+    final userId = auth.user?.id;
+
+    if (role == AppConstants.tourGuideRole) {
+      final tgp = context.read<TourGuideProvider>();
+      if (userId != null && userId.isNotEmpty) {
+        tgp.setCurrentUserId(userId);
+      }
+      await Future.wait([
+        tgp.getMyActiveTours(),
+        tgp.getMyInvitations(),
+      ]);
+    } else if (role == AppConstants.userRole) {
+      final up = context.read<UserProvider>();
+      await Future.wait([
+        up.getDashboardSummary(),
+        up.getMyBookings(refresh: true),
+        up.getMyFeedbacks(refresh: true),
+      ]);
+    }
   }
 
   @override
@@ -127,8 +154,24 @@ class _AuthWrapperState extends State<AuthWrapper> {
             ),
           );
         }
-        
+
+        // Reset prefetch flags when logged out or no user
+        if (!authProvider.isAuthenticated || authProvider.user == null) {
+          _prefetched = false;
+          _prefetchUserId = null;
+        }
+
         if (authProvider.isAuthenticated && authProvider.user != null) {
+          final currentId = authProvider.user!.id;
+
+          if (!_prefetched || _prefetchUserId != currentId) {
+            _prefetched = true;
+            _prefetchUserId = currentId;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _prefetchForAuthenticatedUser(context);
+            });
+          }
+
           // Check user role and route to appropriate dashboard
           if (authProvider.user!.role == AppConstants.tourGuideRole) {
             return const DashboardPage();
@@ -170,7 +213,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
             );
           }
         }
-        
+
         return const LoginPage();
       },
     );

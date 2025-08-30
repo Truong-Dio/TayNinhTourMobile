@@ -122,6 +122,7 @@ class TourBookingGuestModel {
   final String? bookingId;
   final String? customerName;
   final int? totalGuests;
+  final bool? isGroupRepresentative;
 
   const TourBookingGuestModel({
     required this.id,
@@ -137,6 +138,7 @@ class TourBookingGuestModel {
     this.bookingId,
     this.customerName,
     this.totalGuests,
+    this.isGroupRepresentative,
   });
 
   factory TourBookingGuestModel.fromJson(Map<String, dynamic> json) => _$TourBookingGuestModelFromJson(json);

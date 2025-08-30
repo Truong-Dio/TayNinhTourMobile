@@ -210,10 +210,16 @@ class UserProvider extends ChangeNotifier {
         guideComment: feedbackData.guideComment,
       );
 
-      final feedback = await _userApiService.submitTourFeedback(request);
+      final response = await _userApiService.submitTourFeedback(request);
 
-      // Add to local feedback list
-      _myFeedbacks.add(feedback.toEntity());
+      // Check if submission was successful
+      if (!response.success) {
+        _setError('Lỗi khi gửi đánh giá: ${response.message}');
+        return false;
+      }
+
+      // Note: We don't add to local list since we don't have full feedback data
+      // User can refresh to see their feedback in the list
 
       _clearError();
       _logger.i('Successfully submitted tour feedback');

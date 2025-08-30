@@ -16,6 +16,7 @@ import '../../data/models/tour_slot_model.dart';
 import '../../data/models/tour_guide_slot_models.dart';
 import '../../data/models/individual_qr_models.dart';
 import '../../data/models/group_booking_model.dart';
+import '../../data/models/unified_checkin_models.dart';
 import '../../data/services/qr_parsing_service.dart';
 import '../../domain/entities/active_tour.dart';
 import '../../domain/entities/tour_booking.dart';
@@ -281,7 +282,59 @@ class TourGuideProvider extends ChangeNotifier {
     }
   }
 
-  /// ✅ ENHANCED: Check-in guest by QR code (supports all backend QR formats)
+  /// ✅ NEW: Unified check-in method using new backend endpoint
+  /// Automatically detects QR type and processes accordingly
+  Future<UnifiedCheckInResponse?> unifiedCheckIn({
+    required String qrCodeData,
+    required String tourSlotId,
+    String? notes,
+    bool overrideTime = false,
+    String overrideReason = '',
+    List<String>? specificGuestIds,
+  }) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      _logger.i('🔍 Starting unified check-in with QR data: ${qrCodeData.length} chars');
+
+      // Create unified request
+      final request = UnifiedCheckInRequest(
+        qrCodeData: qrCodeData,
+        tourSlotId: tourSlotId,
+        notes: notes,
+        overrideTimeRestriction: overrideTime,
+        overrideReason: overrideReason,
+        specificGuestIds: specificGuestIds,
+      );
+
+      // Call unified endpoint
+      final response = await _tourGuideApiService.unifiedCheckIn(request);
+
+      if (response.success) {
+        _logger.i('✅ Unified check-in successful: ${response.qrType} - ${response.bookingCode}');
+        _logger.i('✅ Checked in ${response.checkedInCount}/${response.totalGuestCount} guests');
+
+        // Update local state if needed
+        // await _refreshCurrentTourData(); // TODO: Implement if needed
+
+        return response;
+      } else {
+        _setError(response.message);
+        return response;
+      }
+    } catch (e) {
+      _logger.e('❌ Unified check-in error: $e');
+      _setError('Lỗi check-in: $e');
+      return null;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// ✅ LEGACY: Check-in guest by QR code (supports all backend QR formats)
+  /// Kept for backward compatibility - use unifiedCheckIn instead
+  @Deprecated('Use unifiedCheckIn instead')
   Future<dynamic> checkInGuestByQR({
     required String qrCodeData,
     required String tourSlotId,
@@ -424,7 +477,7 @@ class TourGuideProvider extends ChangeNotifier {
     String overrideReason = '',
   }) async {
     final qrType = qrResult.qrType;
-    final displayName = QRParsingService.getQRTypeDisplayName(qrType);
+    final displayName = qrType; // Simplified - use qrType directly
 
     _logger.i('🔍 Universal check-in for $displayName: ${qrResult.legacyBookingCode ?? "N/A"}');
 

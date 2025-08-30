@@ -24,6 +24,7 @@ TourBookingModel _$TourBookingModelFromJson(Map<String, dynamic> json) =>
       customerName: json['customerName'] as String?,
       tourSlotDate: json['tourSlotDate'] as String?,
       tourSlotId: json['tourSlotId'] as String?,
+      bookingType: json['bookingType'] as String?,
     );
 
 Map<String, dynamic> _$TourBookingModelToJson(TourBookingModel instance) =>
@@ -42,4 +43,5 @@ Map<String, dynamic> _$TourBookingModelToJson(TourBookingModel instance) =>
       'customerName': instance.customerName,
       'tourSlotDate': instance.tourSlotDate,
       'tourSlotId': instance.tourSlotId,
+      'bookingType': instance.bookingType,
     };

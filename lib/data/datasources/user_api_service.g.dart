@@ -295,14 +295,14 @@ class _UserApiService implements UserApiService {
   }
 
   @override
-  Future<TourFeedbackModel> submitTourFeedback(
+  Future<CreateTourFeedbackResponse> submitTourFeedback(
       CreateTourFeedbackRequest request) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
     final _headers = <String, dynamic>{};
     final _data = <String, dynamic>{};
     _data.addAll(request.toJson());
-    final _options = _setStreamType<TourFeedbackModel>(Options(
+    final _options = _setStreamType<CreateTourFeedbackResponse>(Options(
       method: 'POST',
       headers: _headers,
       extra: _extra,
@@ -319,9 +319,9 @@ class _UserApiService implements UserApiService {
           baseUrl,
         )));
     final _result = await _dio.fetch<Map<String, dynamic>>(_options);
-    late TourFeedbackModel _value;
+    late CreateTourFeedbackResponse _value;
     try {
-      _value = TourFeedbackModel.fromJson(_result.data!);
+      _value = CreateTourFeedbackResponse.fromJson(_result.data!);
     } on Object catch (e, s) {
       errorLogger?.logError(e, s, _options);
       rethrow;

@@ -234,15 +234,16 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
     final tourGuideProvider = context.read<TourGuideProvider>();
 
     try {
-      // Use new unified QR check-in method
-      final result = await tourGuideProvider.checkInGuestByQR(
+      // ✅ NEW: Use unified check-in endpoint
+      final result = await tourGuideProvider.unifiedCheckIn(
         qrCodeData: jsonEncode(qrData.toJson()), // Convert back to JSON for API
         tourSlotId: _selectedTourSlot!.id,
         notes: 'Check-in bằng QR code Individual Guest',
       );
 
-      if (result != null && result is IndividualGuestCheckInResponse && result.success) {
-        _showMessage('✅ Check-in thành công: ${qrData.guestName}', isError: false);
+      if (result != null && result.success) {
+        final guestName = result.individualGuest?.guestName ?? qrData.guestName;
+        _showMessage('✅ Check-in thành công: $guestName', isError: false);
 
         // Refresh guest list
         await _refreshCurrentSlotData();
@@ -270,15 +271,19 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
     final tourGuideProvider = context.read<TourGuideProvider>();
 
     try {
-      // Use new unified QR check-in method
-      final result = await tourGuideProvider.checkInGuestByQR(
+      // ✅ NEW: Use unified check-in endpoint
+      final result = await tourGuideProvider.unifiedCheckIn(
         qrCodeData: jsonEncode(qrData.toJson()), // Convert back to JSON for API
         tourSlotId: _selectedTourSlot!.id,
         notes: 'Check-in bằng QR code Group Booking',
       );
 
-      if (result != null && result is GroupCheckInResponse && result.success) {
-        _showMessage('✅ Check-in nhóm thành công: ${qrData.groupName ?? qrData.bookingCode}', isError: false);
+      if (result != null && result.success) {
+        final groupName = result.groupInfo?.groupName ?? qrData.groupName ?? qrData.bookingCode;
+        final checkedInCount = result.checkedInCount;
+        final totalCount = result.totalGuestCount;
+
+        _showMessage('✅ Check-in nhóm thành công: $groupName ($checkedInCount/$totalCount khách)', isError: false);
 
         // Refresh guest list
         await _refreshCurrentSlotData();
@@ -306,15 +311,19 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
     final tourGuideProvider = context.read<TourGuideProvider>();
 
     try {
-      // Use new unified QR check-in method for legacy codes
-      final result = await tourGuideProvider.checkInGuestByQR(
+      // ✅ NEW: Use unified check-in endpoint for legacy codes
+      final result = await tourGuideProvider.unifiedCheckIn(
         qrCodeData: qrCode, // Send raw legacy QR code
         tourSlotId: _selectedTourSlot!.id,
         notes: 'Check-in bằng QR code legacy',
       );
 
       if (result != null && result.success) {
-        _showMessage('✅ Check-in thành công với mã: $qrCode', isError: false);
+        final displayName = result.qrType == 'Individual'
+            ? result.individualGuest?.guestName ?? 'Khách hàng'
+            : result.groupInfo?.groupName ?? result.bookingCode ?? 'Nhóm';
+
+        _showMessage('✅ Check-in thành công: $displayName (${result.bookingCode})', isError: false);
 
         // Refresh guest list
         await _refreshCurrentSlotData();
@@ -430,7 +439,7 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
         },
       ),
       // Add floating action button for QR scanning
-      floatingActionButton: _selectedTourSlot != null
+      floatingActionButton: _selectedTourSlot != null && _shouldShowQRButton()
           ? FloatingActionButton.extended(
               onPressed: _openQRScanner,
               icon: const Icon(Icons.qr_code_scanner),
@@ -439,6 +448,29 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
             )
           : null,
     );
+  }
+
+  /// Check if QR button should be shown based on current tab and booking types
+  bool _shouldShowQRButton() {
+    if (_selectedTourSlot == null) return false;
+
+    final currentTab = _tabController.index;
+    final isBookingTab = currentTab == 0;
+    final isGuestTab = currentTab == 1;
+
+    if (isBookingTab) {
+      // Tab "Theo Booking": Chỉ show QR button nếu có Group bookings
+      final tourGuideProvider = context.read<TourGuideProvider>();
+      final bookings = tourGuideProvider.currentSlotBookingsList;
+      return bookings.any((booking) => (booking.bookingType ?? "Individual") == "GroupRepresentative");
+    } else if (isGuestTab) {
+      // Tab "Khách lẻ": Chỉ show QR button nếu có Individual guests
+      final tourGuideProvider = context.read<TourGuideProvider>();
+      final guests = tourGuideProvider.currentSlotGuests;
+      return guests.any((guest) => (guest.totalGuests ?? 1) == 1 || !(guest.isGroupRepresentative ?? false));
+    }
+
+    return false;
   }
 
   /// [NEW] Build tour slot header - Adaptive version based on selected tab
@@ -1193,15 +1225,19 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
                       final tourGuideProvider = context.read<TourGuideProvider>();
 
                       try {
-                        // Use new unified QR check-in method
-                        final result = await tourGuideProvider.checkInGuestByQR(
+                        // ✅ NEW: Use unified check-in endpoint
+                        final result = await tourGuideProvider.unifiedCheckIn(
                           qrCodeData: qrCodeData,
                           tourSlotId: _selectedTourSlot!.id,
                           notes: 'Check-in bằng QR scanner cho ${guest.guestName}',
                         );
 
                         if (result != null && result.success) {
-                          _showMessage('✅ Check-in thành công: ${guest.guestName}', isError: false);
+                          final checkedInName = result.qrType == 'Individual'
+                              ? result.individualGuest?.guestName ?? guest.guestName
+                              : '${result.checkedInCount} khách trong nhóm';
+
+                          _showMessage('✅ Check-in thành công: $checkedInName', isError: false);
 
                           // Refresh guest list
                           await _refreshCurrentSlotData();

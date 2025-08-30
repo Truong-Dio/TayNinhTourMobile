@@ -8,6 +8,10 @@ import '../../providers/auth_provider.dart';
 import '../../widgets/common/loading_overlay.dart';
 import '../../../core/constants/app_constants.dart';
 import 'forgot_password_page.dart';
+import '../../providers/tour_guide_provider.dart';
+import '../../providers/user_provider.dart';
+import '../dashboard/dashboard_page.dart';
+import '../user/user_main_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -40,13 +44,61 @@ class _LoginPageState extends State<LoginPage> {
       _passwordController.text,
     );
 
-    if (!success && mounted) {
+    if (success) {
+      await _prefetchAfterLogin();
+      if (!mounted) return;
+      final role = authProvider.user?.role ?? AppConstants.userRole;
+      if (role == AppConstants.tourGuideRole) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const DashboardPage()),
+          (route) => false,
+        );
+      } else {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const UserMainPage()),
+          (route) => false,
+        );
+      }
+    } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(authProvider.errorMessage ?? 'Đăng nhập thất bại'),
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+  Future<void> _prefetchAfterLogin() async {
+    try {
+      final auth = context.read<AuthProvider>();
+      final role = auth.user?.role ?? AppConstants.userRole;
+
+      if (role == AppConstants.tourGuideRole) {
+        final tgp = context.read<TourGuideProvider>();
+
+        // Cập nhật userId cho provider nếu có
+        final userId = auth.user?.id;
+        if (userId != null && userId.isNotEmpty) {
+          tgp.setCurrentUserId(userId);
+        }
+
+        // Tải dữ liệu ban đầu cho HDV
+        await Future.wait([
+          tgp.getMyActiveTours(),
+          tgp.getMyInvitations(),
+        ]);
+      } else {
+        final up = context.read<UserProvider>();
+
+        // Tải dữ liệu ban đầu cho User
+        await Future.wait([
+          up.getDashboardSummary(),
+          up.getMyBookings(refresh: true),
+          up.getMyFeedbacks(refresh: true),
+        ]);
+      }
+    } catch (_) {
+      // Bỏ qua lỗi prefetch; màn hình home vẫn có cơ chế refresh
     }
   }
 

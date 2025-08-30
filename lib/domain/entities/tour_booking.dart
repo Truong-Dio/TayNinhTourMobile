@@ -16,6 +16,7 @@ class TourBooking extends Equatable {
   final String? customerName;
   final String? tourSlotDate; // ✅ NEW: From API response
   final String? tourSlotId;   // ✅ NEW: From API response
+  final String? bookingType;  // ✅ NEW: Individual or GroupRepresentative
 
   const TourBooking({
     required this.id,
@@ -32,6 +33,7 @@ class TourBooking extends Equatable {
     this.customerName,
     this.tourSlotDate,
     this.tourSlotId,
+    this.bookingType,
   });
   
   @override
@@ -50,5 +52,6 @@ class TourBooking extends Equatable {
     customerName,
     tourSlotDate,
     tourSlotId,
+    bookingType,
   ];
 }
