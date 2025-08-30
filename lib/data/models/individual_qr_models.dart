@@ -2,6 +2,61 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'individual_qr_models.g.dart';
 
+/// ✅ NEW: Request model for QR check-in
+@JsonSerializable()
+class CheckInGuestByQRRequest {
+  final String qrCodeData;
+  final String tourSlotId;
+  final String tourguideId;
+  final String checkInTime;
+  final String? notes;
+  final bool? overrideTime;
+  final String? overrideReason;
+
+  const CheckInGuestByQRRequest({
+    required this.qrCodeData,
+    required this.tourSlotId,
+    required this.tourguideId,
+    required this.checkInTime,
+    this.notes,
+    this.overrideTime,
+    this.overrideReason,
+  });
+
+  factory CheckInGuestByQRRequest.fromJson(Map<String, dynamic> json) =>
+      _$CheckInGuestByQRRequestFromJson(json);
+
+  Map<String, dynamic> toJson() => _$CheckInGuestByQRRequestToJson(this);
+}
+
+/// ✅ NEW: Request model for Group QR check-in (matches backend CheckInGroupRequest)
+@JsonSerializable()
+class CheckInGroupByQRRequest {
+  @JsonKey(name: 'QrCodeData')
+  final String qrCodeData;
+  @JsonKey(name: 'TourGuideId')
+  final String? tourGuideId;
+  @JsonKey(name: 'CheckInNotes')
+  final String? checkInNotes;
+  @JsonKey(name: 'SpecificGuestIds')
+  final List<String>? specificGuestIds;
+  @JsonKey(name: 'AllowPartialCheckIn')
+  final bool allowPartialCheckIn;
+
+  const CheckInGroupByQRRequest({
+    required this.qrCodeData,
+    this.tourGuideId,
+    this.checkInNotes,
+    this.specificGuestIds,
+    this.allowPartialCheckIn = true,
+  });
+
+  factory CheckInGroupByQRRequest.fromJson(Map<String, dynamic> json) =>
+      _$CheckInGroupByQRRequestFromJson(json);
+
+  Map<String, dynamic> toJson() => _$CheckInGroupByQRRequestToJson(this);
+}
+
 /// ✅ NEW: Individual Guest QR Code data model
 @JsonSerializable()
 class IndividualGuestQR {
@@ -202,6 +257,39 @@ class IndividualGuestCheckInResponse {
 
   factory IndividualGuestCheckInResponse.fromJson(Map<String, dynamic> json) => _$IndividualGuestCheckInResponseFromJson(json);
   Map<String, dynamic> toJson() => _$IndividualGuestCheckInResponseToJson(this);
+}
+
+/// ✅ NEW: Group check-in response
+@JsonSerializable()
+class GroupCheckInResponse {
+  @JsonKey(defaultValue: true)
+  final bool success;
+
+  @JsonKey(defaultValue: '')
+  final String message;
+
+  final String? bookingId;
+  final String? bookingCode;
+  final String? groupName;
+  final int? numberOfGuests;
+  final int? checkedInGuests;
+  final String? checkInTime;
+  final List<TourBookingGuestModel>? guests;
+
+  const GroupCheckInResponse({
+    required this.success,
+    required this.message,
+    this.bookingId,
+    this.bookingCode,
+    this.groupName,
+    this.numberOfGuests,
+    this.checkedInGuests,
+    this.checkInTime,
+    this.guests,
+  });
+
+  factory GroupCheckInResponse.fromJson(Map<String, dynamic> json) => _$GroupCheckInResponseFromJson(json);
+  Map<String, dynamic> toJson() => _$GroupCheckInResponseToJson(this);
 }
 
 /// ✅ NEW: Tour slot guests response

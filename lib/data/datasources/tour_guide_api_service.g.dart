@@ -337,14 +337,42 @@ class _TourGuideApiService implements TourGuideApiService {
   }
 
   @override
-  Future<CheckInGroupResponse> checkInGroupByQR(
-      CheckInGroupRequest request) async {
+  Future<dynamic> checkInGuestByQRRaw(CheckInGuestByQRRequest request) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
     final _headers = <String, dynamic>{};
     final _data = <String, dynamic>{};
     _data.addAll(request.toJson());
-    final _options = _setStreamType<CheckInGroupResponse>(Options(
+    final _options = _setStreamType<dynamic>(Options(
+      method: 'POST',
+      headers: _headers,
+      extra: _extra,
+    )
+        .compose(
+          _dio.options,
+          '/TourGuide/check-in-guest-qr',
+          queryParameters: queryParameters,
+          data: _data,
+        )
+        .copyWith(
+            baseUrl: _combineBaseUrls(
+          _dio.options.baseUrl,
+          baseUrl,
+        )));
+    final _result = await _dio.fetch(_options);
+    final _value = _result.data;
+    return _value;
+  }
+
+  @override
+  Future<GroupCheckInResponse> checkInGroupByQR(
+      CheckInGroupByQRRequest request) async {
+    final _extra = <String, dynamic>{};
+    final queryParameters = <String, dynamic>{};
+    final _headers = <String, dynamic>{};
+    final _data = <String, dynamic>{};
+    _data.addAll(request.toJson());
+    final _options = _setStreamType<GroupCheckInResponse>(Options(
       method: 'POST',
       headers: _headers,
       extra: _extra,
@@ -361,9 +389,9 @@ class _TourGuideApiService implements TourGuideApiService {
           baseUrl,
         )));
     final _result = await _dio.fetch<Map<String, dynamic>>(_options);
-    late CheckInGroupResponse _value;
+    late GroupCheckInResponse _value;
     try {
-      _value = CheckInGroupResponse.fromJson(_result.data!);
+      _value = GroupCheckInResponse.fromJson(_result.data!);
     } on Object catch (e, s) {
       errorLogger?.logError(e, s, _options);
       rethrow;

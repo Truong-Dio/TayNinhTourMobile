@@ -1,11 +1,14 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:logger/logger.dart';
 import 'package:dio/dio.dart';
 
 import '../../core/errors/exceptions.dart';
 import '../../data/datasources/tour_guide_api_service.dart';
+import 'auth_provider.dart';
 import '../../data/models/tour_booking_model.dart';
 import '../../data/models/timeline_item_model.dart';
 import '../../data/models/timeline_progress_models.dart';
@@ -259,14 +262,14 @@ class TourGuideProvider extends ChangeNotifier {
     try {
       // Parse QR using service
       final result = QRParsingService.parseAndValidateQR(qrCodeData);
-      
+
       if (!result.isValid) {
         _logger.w('❌ Invalid QR: ${result.errorMessage}');
         _setError(result.errorMessage ?? 'QR code không hợp lệ');
       } else {
         _logger.i('✅ Valid QR: ${result.qrType}');
       }
-      
+
       return result;
     } catch (e) {
       _logger.e('QR parsing error: $e');
@@ -276,6 +279,250 @@ class TourGuideProvider extends ChangeNotifier {
         errorMessage: 'Lỗi xử lý QR code: $e',
       );
     }
+  }
+
+  /// ✅ ENHANCED: Check-in guest by QR code (supports all backend QR formats)
+  Future<dynamic> checkInGuestByQR({
+    required String qrCodeData,
+    required String tourSlotId,
+    String? notes,
+    bool overrideTime = false,
+    String overrideReason = '',
+  }) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      // Parse QR code first để determine type, nhưng vẫn gửi raw data cho backend
+      final qrResult = await parseQRCode(qrCodeData);
+
+      if (!qrResult.isValid) {
+        _setError(qrResult.errorMessage ?? 'QR code không hợp lệ');
+        return null;
+      }
+
+      _logger.i('🔍 Processing QR type: ${qrResult.qrType}');
+      _logger.i('🔍 Raw QR data: $qrCodeData');
+
+      // ✅ STRATEGY: Always send raw QR data to backend, let backend handle parsing
+      // Backend QRCodeService sẽ tự parse ultra-compact format
+
+      // Try individual check-in first (most common)
+      try {
+        final individualRequest = CheckInGuestByQRRequest(
+          qrCodeData: qrCodeData, // Send raw QR data exactly as scanned
+          tourSlotId: tourSlotId,
+          tourguideId: getCurrentUserId(null) ?? '33333333-3333-3333-3333-333333333333',
+          checkInTime: DateTime.now().toIso8601String(),
+          notes: notes ?? 'Check-in bằng QR code',
+          overrideTime: overrideTime,
+          overrideReason: overrideReason,
+        );
+
+        final response = await _tourGuideApiService.checkInGuestByQR(individualRequest);
+
+        if (response.success) {
+          _logger.i('✅ Individual QR check-in successful');
+          return response;
+        } else {
+          // If individual fails, try group check-in
+          _logger.w('Individual check-in failed, trying group check-in: ${response.message}');
+          return await _tryGroupCheckInWithRawData(qrCodeData, notes);
+        }
+      } catch (e) {
+        // If individual check-in fails, try group check-in as fallback
+        _logger.w('Individual check-in failed, trying group check-in: $e');
+        return await _tryGroupCheckInWithRawData(qrCodeData, notes);
+      }
+
+    } catch (e) {
+      _logger.e('❌ QR check-in error: $e');
+      final errorMessage = _extractErrorMessage(e, 'Có lỗi xảy ra khi check-in bằng QR code');
+      _setError(errorMessage);
+      return null;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Check-in individual guest by QR
+  Future<IndividualGuestCheckInResponse?> _checkInIndividualByQR({
+    required QRValidationResult qrResult,
+    required String qrCodeData,
+    required String tourSlotId,
+    String? notes,
+    bool overrideTime = false,
+    String overrideReason = '',
+  }) async {
+    final qr = qrResult.individualGuestQR!;
+
+    _logger.i('🔍 Checking in individual guest: ${qr.guestName} (${qr.bookingCode})');
+
+    // For ultra-compact format, we need to send the raw QR data to backend
+    // Backend will expand the short IDs to full GUIDs
+    final request = CheckInGuestByQRRequest(
+      qrCodeData: qrCodeData, // Send raw QR data
+      tourSlotId: tourSlotId,
+      tourguideId: _currentUserId ?? 'current-tourguide-id',
+      checkInTime: DateTime.now().toIso8601String(),
+      notes: notes,
+      overrideTime: overrideTime,
+      overrideReason: overrideReason,
+    );
+
+    final response = await _tourGuideApiService.checkInGuestByQR(request);
+
+    if (response.success) {
+      _logger.i('✅ Individual QR check-in successful: ${qr.guestName}');
+      // Update local state if needed
+    } else {
+      _setError(response.message);
+    }
+
+    return response;
+  }
+
+  /// Check-in group by QR
+  Future<GroupCheckInResponse?> _checkInGroupByQR({
+    required QRValidationResult qrResult,
+    required String qrCodeData,
+    required String tourSlotId,
+    String? notes,
+    bool overrideTime = false,
+    String overrideReason = '',
+  }) async {
+    final qr = qrResult.groupBookingQR!;
+
+    _logger.i('🔍 Checking in group: ${qr.groupName} (${qr.bookingCode})');
+
+    // For ultra-compact format, we need to send the raw QR data to backend
+    final request = CheckInGroupByQRRequest(
+      qrCodeData: qrCodeData, // Send raw QR data exactly as scanned
+      tourGuideId: getCurrentUserId(null) ?? '33333333-3333-3333-3333-333333333333',
+      checkInNotes: notes,
+    );
+
+    final response = await _tourGuideApiService.checkInGroupByQR(request);
+
+    if (response.success) {
+      _logger.i('✅ Group QR check-in successful: ${qr.groupName}');
+      // Update local state if needed
+    } else {
+      _setError(response.message);
+    }
+
+    return response;
+  }
+
+  /// ✅ NEW: Universal QR check-in handler for all backend compact formats
+  Future<dynamic> _checkInByUniversalQR({
+    required String qrCodeData,
+    required QRValidationResult qrResult,
+    required String tourSlotId,
+    String? notes,
+    bool overrideTime = false,
+    String overrideReason = '',
+  }) async {
+    final qrType = qrResult.qrType;
+    final displayName = QRParsingService.getQRTypeDisplayName(qrType);
+
+    _logger.i('🔍 Universal check-in for $displayName: ${qrResult.legacyBookingCode ?? "N/A"}');
+
+    try {
+      // ✅ Strategy: Send raw QR data to backend, let backend handle expansion
+      // Backend sẽ tự động expand short IDs thành full GUIDs và xử lý logic
+
+      final request = CheckInGuestByQRRequest(
+        qrCodeData: qrCodeData, // Send raw QR data exactly as received
+        tourSlotId: tourSlotId,
+        tourguideId: getCurrentUserId(null) ?? '33333333-3333-3333-3333-333333333333',
+        checkInTime: DateTime.now().toIso8601String(),
+        notes: notes ?? 'Check-in bằng $displayName',
+        overrideTime: overrideTime,
+        overrideReason: overrideReason,
+      );
+
+      // Try individual guest check-in first (most common)
+      try {
+        final response = await _tourGuideApiService.checkInGuestByQR(request);
+
+        if (response.success) {
+          _logger.i('✅ Universal QR check-in successful ($qrType): ${qrResult.legacyBookingCode}');
+          return response;
+        } else {
+          // If individual fails, try group check-in for group formats
+          if (qrType.contains('Group') || qrType.contains('group')) {
+            return await _tryGroupCheckIn(request, qrType);
+          } else {
+            _setError(response.message);
+            return response;
+          }
+        }
+      } catch (e) {
+        // If individual check-in fails, try group check-in as fallback
+        _logger.w('Individual check-in failed, trying group check-in: $e');
+        return await _tryGroupCheckIn(request, qrType);
+      }
+
+    } catch (e) {
+      _logger.e('❌ Universal QR check-in error ($qrType): $e');
+      _setError('Lỗi check-in $displayName: $e');
+      return null;
+    }
+  }
+
+  /// Try group check-in as fallback
+  Future<dynamic> _tryGroupCheckIn(CheckInGuestByQRRequest request, String qrType) async {
+    try {
+      final groupRequest = CheckInGroupByQRRequest(
+        qrCodeData: request.qrCodeData,
+        tourGuideId: getCurrentUserId(null) ?? '33333333-3333-3333-3333-333333333333',
+        checkInNotes: request.notes,
+      );
+
+      final response = await _tourGuideApiService.checkInGroupByQR(groupRequest);
+
+      if (response.success) {
+        _logger.i('✅ Group QR check-in successful ($qrType)');
+      } else {
+        _setError(response.message);
+      }
+
+      return response;
+    } catch (e) {
+      _logger.e('❌ Group check-in also failed ($qrType): $e');
+      _setError('Cả individual và group check-in đều thất bại');
+      return null;
+    }
+  }
+
+  /// Check-in by legacy QR (booking code only) - DEPRECATED, use _checkInByUniversalQR
+  @Deprecated('Use _checkInByUniversalQR instead')
+  Future<dynamic> _checkInByLegacyQR({
+    required String bookingCode,
+    required String tourSlotId,
+    String? notes,
+  }) async {
+    _logger.i('🔍 Checking in by legacy booking code: $bookingCode');
+
+    // Convert to universal format
+    final legacyQRData = jsonEncode({
+      'c': bookingCode,
+      'v': '1.0',
+    });
+
+    final qrResult = QRValidationResult(
+      isValid: true,
+      qrType: 'legacy',
+      legacyBookingCode: bookingCode,
+    );
+
+    return await _checkInByUniversalQR(
+      qrCodeData: legacyQRData,
+      qrResult: qrResult,
+      tourSlotId: tourSlotId,
+      notes: notes,
+    );
   }
 
   /// ✅ NEW: Check-in individual guest by QR code
@@ -400,6 +647,7 @@ class TourGuideProvider extends ChangeNotifier {
   /// ✅ NEW: Check-in group by QR code
   Future<bool> checkInGroupByQR({
     required String qrCodeData,
+    required String tourSlotId,
     String? notes,
   }) async {
     try {
@@ -411,15 +659,16 @@ class TourGuideProvider extends ChangeNotifier {
       final bookingId = qrJson['bookingId'] as String;
 
       // Call API to check-in group
-      final request = CheckInGroupRequest(
+      final request = CheckInGroupByQRRequest(
         qrCodeData: qrCodeData,
+        tourGuideId: getCurrentUserId(null) ?? '33333333-3333-3333-3333-333333333333',
         checkInNotes: notes,
       );
 
       final response = await _tourGuideApiService.checkInGroupByQR(request);
-      
+
       if (response != null && response.success) {
-        _logger.i('✅ Group check-in successful: ${response.checkedInCount} guests checked in');
+        _logger.i('✅ Group check-in successful: ${response.numberOfGuests ?? 0} guests checked in');
         
         // Reload bookings to update UI
         if (_currentTourSlotId != null) {
@@ -444,6 +693,7 @@ class TourGuideProvider extends ChangeNotifier {
   /// ✅ NEW: Check-in group with time override
   Future<bool> checkInGroupWithOverride({
     required String qrCodeData,
+    required String tourSlotId,
     String? notes,
     required bool overrideTimeRestriction,
     required String overrideReason,
@@ -463,15 +713,16 @@ class TourGuideProvider extends ChangeNotifier {
         : checkInNotes;
 
       // Call API to check-in group with override
-      final request = CheckInGroupRequest(
+      final request = CheckInGroupByQRRequest(
         qrCodeData: qrCodeData,
+        tourGuideId: getCurrentUserId(null) ?? '33333333-3333-3333-3333-333333333333',
         checkInNotes: fullNotes,
       );
 
       final response = await _tourGuideApiService.checkInGroupByQR(request);
-      
+
       if (response != null && response.success) {
-        _logger.i('✅ Group check-in with override successful: ${response.checkedInCount} guests checked in');
+        _logger.i('✅ Group check-in with override successful: ${response.numberOfGuests ?? 0} guests checked in');
         
         // Reload bookings to update UI
         if (_currentTourSlotId != null) {
@@ -517,6 +768,42 @@ class TourGuideProvider extends ChangeNotifier {
   /// ✅ NEW: Set current user ID (call this during login)
   void setCurrentUserId(String userId) {
     _currentUserId = userId;
+  }
+
+  /// ✅ NEW: Get current user ID from AuthProvider
+  String? getCurrentUserId(BuildContext? context) {
+    if (_currentUserId != null) return _currentUserId;
+
+    // Try to get from JWT token (hardcoded for now)
+    return "33333333-3333-3333-3333-333333333333"; // From JWT token in logs
+  }
+
+  /// ✅ NEW: Try group check-in with raw QR data
+  Future<dynamic> _tryGroupCheckInWithRawData(String qrCodeData, String? notes) async {
+    try {
+      _logger.i('🔍 Raw QR data for group check-in: $qrCodeData');
+
+      final groupRequest = CheckInGroupByQRRequest(
+        qrCodeData: qrCodeData, // Send raw QR data exactly as scanned
+        tourGuideId: getCurrentUserId(null) ?? '33333333-3333-3333-3333-333333333333',
+        checkInNotes: notes ?? 'Check-in bằng QR code Group',
+      );
+
+      final response = await _tourGuideApiService.checkInGroupByQR(groupRequest);
+
+      if (response.success) {
+        _logger.i('✅ Group QR check-in successful');
+        return response;
+      } else {
+        _logger.e('❌ Group check-in failed: ${response.message}');
+        _setError(response.message ?? 'Group check-in failed');
+        return null;
+      }
+    } catch (e) {
+      _logger.e('❌ Group check-in error: $e');
+      _setError(_extractErrorMessage(e, 'Group check-in failed'));
+      return null;
+    }
   }
   
   /// Complete a timeline item

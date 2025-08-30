@@ -224,114 +224,124 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
     }
   }
 
-  /// ✅ NEW: Handle individual guest QR code
+  /// ✅ UPDATED: Handle individual guest QR code (supports all formats)
   Future<void> _handleIndividualGuestQR(IndividualGuestQR qrData) async {
+    if (_selectedTourSlot == null) {
+      _showMessage('Vui lòng chọn tour slot trước', isError: true);
+      return;
+    }
+
     final tourGuideProvider = context.read<TourGuideProvider>();
 
-    // Check if QR belongs to current slot
-    if (_selectedTourSlot == null || qrData.tourSlotId != _selectedTourSlot!.id) {
-      // Try to auto-switch to the correct tour slot
-      final targetSlot = tourGuideProvider.tourSlots
-          .where((slot) => slot.id == qrData.tourSlotId)
-          .firstOrNull;
-      
-      if (targetSlot != null) {
-        // Auto-switch to correct slot
-        _showMessage('Đang chuyển đến tour slot ${targetSlot.tourDetails.title}...', isError: false);
-        await _selectTourSlot(targetSlot);
-        
-        // Re-validate after switching
-        if (_selectedTourSlot?.id != qrData.tourSlotId) {
-          _showMessage('Không thể chuyển đến tour slot phù hợp', isError: true);
-          return;
-        }
+    try {
+      // Use new unified QR check-in method
+      final result = await tourGuideProvider.checkInGuestByQR(
+        qrCodeData: jsonEncode(qrData.toJson()), // Convert back to JSON for API
+        tourSlotId: _selectedTourSlot!.id,
+        notes: 'Check-in bằng QR code Individual Guest',
+      );
+
+      if (result != null && result is IndividualGuestCheckInResponse && result.success) {
+        _showMessage('✅ Check-in thành công: ${qrData.guestName}', isError: false);
+
+        // Refresh guest list
+        await _refreshCurrentSlotData();
+
+        // Update UI
+        setState(() {
+          // Force rebuild
+        });
       } else {
-        // Tour slot not found in HDV's assigned slots
-        _showMessage('QR code không thuộc tour slot được phân công cho bạn', isError: true);
-        return;
+        final errorMessage = result?.message ?? 'Check-in thất bại';
+        _showMessage('❌ $errorMessage', isError: true);
       }
+    } catch (e) {
+      _showMessage('❌ Lỗi check-in: $e', isError: true);
     }
-
-    // Check if guest exists in current slot
-    final guest = tourGuideProvider.findGuestByQRData(qrData);
-    if (guest == null) {
-      _showMessage('Không tìm thấy khách hàng ${qrData.guestName} trong tour slot này', isError: true);
-      return;
-    }
-
-    if (guest.isCheckedIn) {
-      _showMessage('${guest.guestName} đã được check-in trước đó', isError: true);
-      return;
-    }
-
-    // Show individual guest check-in dialog
-    _showIndividualGuestCheckInDialog(guest, qrData);
   }
 
-  /// ✅ NEW: Handle group booking QR code
+  /// ✅ UPDATED: Handle group booking QR code (supports all formats)
   Future<void> _handleGroupBookingQR(GroupBookingQR qrData) async {
+    if (_selectedTourSlot == null) {
+      _showMessage('Vui lòng chọn tour slot trước', isError: true);
+      return;
+    }
+
     final tourGuideProvider = context.read<TourGuideProvider>();
 
-    // Check if QR belongs to current slot
-    if (_selectedTourSlot == null || qrData.tourSlotId != _selectedTourSlot!.id) {
-      // Try to auto-switch to the correct tour slot
-      final targetSlot = tourGuideProvider.tourSlots
-          .where((slot) => slot.id == qrData.tourSlotId)
-          .firstOrNull;
-      
-      if (targetSlot != null) {
-        // Auto-switch to correct slot
-        _showMessage('Đang chuyển đến tour slot ${targetSlot.tourDetails.title}...', isError: false);
-        await _selectTourSlot(targetSlot);
-        
-        // Re-validate after switching
-        if (_selectedTourSlot?.id != qrData.tourSlotId) {
-          _showMessage('Không thể chuyển đến tour slot phù hợp', isError: true);
-          return;
-        }
+    try {
+      // Use new unified QR check-in method
+      final result = await tourGuideProvider.checkInGuestByQR(
+        qrCodeData: jsonEncode(qrData.toJson()), // Convert back to JSON for API
+        tourSlotId: _selectedTourSlot!.id,
+        notes: 'Check-in bằng QR code Group Booking',
+      );
+
+      if (result != null && result is GroupCheckInResponse && result.success) {
+        _showMessage('✅ Check-in nhóm thành công: ${qrData.groupName ?? qrData.bookingCode}', isError: false);
+
+        // Refresh guest list
+        await _refreshCurrentSlotData();
+
+        // Update UI
+        setState(() {
+          // Force rebuild
+        });
       } else {
-        // Tour slot not found in HDV's assigned slots
-        _showMessage('QR code không thuộc tour slot được phân công cho bạn', isError: true);
-        return;
+        final errorMessage = result?.message ?? 'Check-in nhóm thất bại';
+        _showMessage('❌ $errorMessage', isError: true);
       }
+    } catch (e) {
+      _showMessage('❌ Lỗi check-in nhóm: $e', isError: true);
     }
-
-    // Check if booking exists in current slot
-    final booking = tourGuideProvider.findBookingById(qrData.bookingId);
-    if (booking == null) {
-      _showMessage('Không tìm thấy booking nhóm ${qrData.groupName ?? qrData.bookingCode} trong tour slot này', isError: true);
-      return;
-    }
-
-    // Check if already checked in
-    if (booking.isCheckedIn) {
-      _showMessage('Nhóm ${qrData.groupName ?? "này"} đã được check-in trước đó', isError: true);
-      return;
-    }
-
-    // Show group check-in dialog
-    _showGroupCheckInDialog(booking, qrData);
   }
 
-  /// ✅ NEW: Handle legacy booking QR code (backward compatibility)
+  /// ✅ UPDATED: Handle legacy booking QR code (backward compatibility)
   Future<void> _handleLegacyBookingQR(String qrCode) async {
+    if (_selectedTourSlot == null) {
+      _showMessage('Vui lòng chọn tour slot trước', isError: true);
+      return;
+    }
+
     final tourGuideProvider = context.read<TourGuideProvider>();
 
-    // Find booking by QR code in current slot (legacy method)
-    final booking = tourGuideProvider.findBookingByQRCode(qrCode);
+    try {
+      // Use new unified QR check-in method for legacy codes
+      final result = await tourGuideProvider.checkInGuestByQR(
+        qrCodeData: qrCode, // Send raw legacy QR code
+        tourSlotId: _selectedTourSlot!.id,
+        notes: 'Check-in bằng QR code legacy',
+      );
 
-    if (booking == null) {
-      _showMessage('Không tìm thấy booking với QR code này trong slot hiện tại', isError: true);
-      return;
+      if (result != null && result.success) {
+        _showMessage('✅ Check-in thành công với mã: $qrCode', isError: false);
+
+        // Refresh guest list
+        await _refreshCurrentSlotData();
+
+        // Update UI
+        setState(() {
+          // Force rebuild
+        });
+      } else {
+        final errorMessage = result?.message ?? 'Check-in thất bại';
+        _showMessage('❌ $errorMessage', isError: true);
+      }
+    } catch (e) {
+      _showMessage('❌ Lỗi check-in legacy: $e', isError: true);
     }
+  }
 
-    if (booking.isCheckedIn) {
-      _showMessage('Khách hàng đã được check-in trước đó', isError: true);
-      return;
+  /// Refresh current slot data after check-in
+  Future<void> _refreshCurrentSlotData() async {
+    if (_selectedTourSlot != null) {
+      final tourGuideProvider = context.read<TourGuideProvider>();
+      // Reload tour slots to get updated data
+      await tourGuideProvider.getMyTourSlots();
+      setState(() {
+        // Force rebuild to show updated data
+      });
     }
-
-    // Show legacy check-in dialog
-    _showQRCheckInDialog(booking, qrCode);
   }
 
   void _showMessage(String message, {bool isError = false}) {
@@ -1174,24 +1184,38 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
                   child: QRScannerWidget(
                     onQRScanned: (qrCodeData) async {
                       Navigator.of(context).pop(); // Close scanner dialog
-                      
-                      // Parse and validate QR code
-                      final tourGuideProvider = context.read<TourGuideProvider>();
-                      final qrResult = await tourGuideProvider.parseQRCode(qrCodeData);
-                      
-                      if (!qrResult.isValid) {
-                        _showMessage(qrResult.errorMessage ?? 'QR code không hợp lệ', isError: true);
+
+                      if (_selectedTourSlot == null) {
+                        _showMessage('Vui lòng chọn tour slot trước', isError: true);
                         return;
                       }
-                      
-                      // Check if QR belongs to this guest
-                      if (qrResult.qrType == 'IndividualGuest' && 
-                          qrResult.individualGuestQR != null &&
-                          qrResult.individualGuestQR!.guestId == guest.id) {
-                        // Correct QR code - proceed with check-in
-                        _showIndividualGuestCheckInDialog(guest, qrResult.individualGuestQR!);
-                      } else {
-                        _showMessage('Mã QR không khớp với khách hàng ${guest.guestName}', isError: true);
+
+                      final tourGuideProvider = context.read<TourGuideProvider>();
+
+                      try {
+                        // Use new unified QR check-in method
+                        final result = await tourGuideProvider.checkInGuestByQR(
+                          qrCodeData: qrCodeData,
+                          tourSlotId: _selectedTourSlot!.id,
+                          notes: 'Check-in bằng QR scanner cho ${guest.guestName}',
+                        );
+
+                        if (result != null && result.success) {
+                          _showMessage('✅ Check-in thành công: ${guest.guestName}', isError: false);
+
+                          // Refresh guest list
+                          await _refreshCurrentSlotData();
+
+                          // Update UI
+                          setState(() {
+                            // Force rebuild
+                          });
+                        } else {
+                          final errorMessage = result?.message ?? 'Check-in thất bại';
+                          _showMessage('❌ $errorMessage', isError: true);
+                        }
+                      } catch (e) {
+                        _showMessage('❌ Lỗi check-in: $e', isError: true);
                       }
                     },
                   ),
@@ -1732,6 +1756,7 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
       if (overrideTime) {
         success = await tourGuideProvider.checkInGroupWithOverride(
           qrCodeData: jsonEncode(qrData.toJson()),
+          tourSlotId: _selectedTourSlot?.id ?? '',
           notes: notes.isNotEmpty ? notes : 'Check-in nhóm bằng QR code',
           overrideTimeRestriction: true,
           overrideReason: overrideReason,
@@ -1739,6 +1764,7 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
       } else {
         success = await tourGuideProvider.checkInGroupByQR(
           qrCodeData: jsonEncode(qrData.toJson()),
+          tourSlotId: _selectedTourSlot?.id ?? '',
           notes: notes.isNotEmpty ? notes : 'Check-in nhóm bằng QR code',
         );
       }

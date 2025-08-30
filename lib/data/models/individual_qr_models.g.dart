@@ -6,6 +6,52 @@ part of 'individual_qr_models.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+CheckInGuestByQRRequest _$CheckInGuestByQRRequestFromJson(
+        Map<String, dynamic> json) =>
+    CheckInGuestByQRRequest(
+      qrCodeData: json['qrCodeData'] as String,
+      tourSlotId: json['tourSlotId'] as String,
+      tourguideId: json['tourguideId'] as String,
+      checkInTime: json['checkInTime'] as String,
+      notes: json['notes'] as String?,
+      overrideTime: json['overrideTime'] as bool?,
+      overrideReason: json['overrideReason'] as String?,
+    );
+
+Map<String, dynamic> _$CheckInGuestByQRRequestToJson(
+        CheckInGuestByQRRequest instance) =>
+    <String, dynamic>{
+      'qrCodeData': instance.qrCodeData,
+      'tourSlotId': instance.tourSlotId,
+      'tourguideId': instance.tourguideId,
+      'checkInTime': instance.checkInTime,
+      'notes': instance.notes,
+      'overrideTime': instance.overrideTime,
+      'overrideReason': instance.overrideReason,
+    };
+
+CheckInGroupByQRRequest _$CheckInGroupByQRRequestFromJson(
+        Map<String, dynamic> json) =>
+    CheckInGroupByQRRequest(
+      qrCodeData: json['QrCodeData'] as String,
+      tourGuideId: json['TourGuideId'] as String?,
+      checkInNotes: json['CheckInNotes'] as String?,
+      specificGuestIds: (json['SpecificGuestIds'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList(),
+      allowPartialCheckIn: json['AllowPartialCheckIn'] as bool? ?? true,
+    );
+
+Map<String, dynamic> _$CheckInGroupByQRRequestToJson(
+        CheckInGroupByQRRequest instance) =>
+    <String, dynamic>{
+      'QrCodeData': instance.qrCodeData,
+      'TourGuideId': instance.tourGuideId,
+      'CheckInNotes': instance.checkInNotes,
+      'SpecificGuestIds': instance.specificGuestIds,
+      'AllowPartialCheckIn': instance.allowPartialCheckIn,
+    };
+
 IndividualGuestQR _$IndividualGuestQRFromJson(Map<String, dynamic> json) =>
     IndividualGuestQR(
       guestId: json['guestId'] as String,
@@ -177,6 +223,37 @@ Map<String, dynamic> _$IndividualGuestCheckInResponseToJson(
       'message': instance.message,
       'guestInfo': instance.guestInfo,
       'checkInTime': instance.checkInTime,
+    };
+
+GroupCheckInResponse _$GroupCheckInResponseFromJson(
+        Map<String, dynamic> json) =>
+    GroupCheckInResponse(
+      success: json['success'] as bool? ?? true,
+      message: json['message'] as String? ?? '',
+      bookingId: json['bookingId'] as String?,
+      bookingCode: json['bookingCode'] as String?,
+      groupName: json['groupName'] as String?,
+      numberOfGuests: (json['numberOfGuests'] as num?)?.toInt(),
+      checkedInGuests: (json['checkedInGuests'] as num?)?.toInt(),
+      checkInTime: json['checkInTime'] as String?,
+      guests: (json['guests'] as List<dynamic>?)
+          ?.map(
+              (e) => TourBookingGuestModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+
+Map<String, dynamic> _$GroupCheckInResponseToJson(
+        GroupCheckInResponse instance) =>
+    <String, dynamic>{
+      'success': instance.success,
+      'message': instance.message,
+      'bookingId': instance.bookingId,
+      'bookingCode': instance.bookingCode,
+      'groupName': instance.groupName,
+      'numberOfGuests': instance.numberOfGuests,
+      'checkedInGuests': instance.checkedInGuests,
+      'checkInTime': instance.checkInTime,
+      'guests': instance.guests,
     };
 
 TourSlotGuestsResponse _$TourSlotGuestsResponseFromJson(

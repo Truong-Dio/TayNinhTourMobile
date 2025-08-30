@@ -68,16 +68,24 @@ abstract class TourGuideApiService {
     @Body() CheckInGuestWithOverrideRequest request,
   );
 
-  /// ✅ NEW: Check-in individual guest by QR code
+  /// ✅ NEW: Check-in individual guest by QR code (legacy endpoint)
   @POST('/TourGuide/check-in-guest-qr')
   Future<IndividualGuestCheckInResponse> checkInIndividualGuest(
     @Body() IndividualGuestCheckInRequest request,
   );
 
+  /// ✅ NEW: Check-in guest by QR code (supports all QR formats)
+  @POST('/TourGuide/check-in-guest-qr')
+  Future<dynamic> checkInGuestByQRRaw(
+    @Body() CheckInGuestByQRRequest request,
+  );
+
+
+
   /// ✅ NEW: Check-in group by QR code
   @POST('/TourGuide/check-in-group')
-  Future<CheckInGroupResponse> checkInGroupByQR(
-    @Body() CheckInGroupRequest request,
+  Future<GroupCheckInResponse> checkInGroupByQR(
+    @Body() CheckInGroupByQRRequest request,
   );
 
   /// ✅ NEW: Get guest status by guest ID
@@ -808,4 +816,65 @@ class CheckedInGuestInfo {
     isGroupRepresentative: json['isGroupRepresentative'] ?? false,
     checkInTime: DateTime.parse(json['checkInTime'] ?? DateTime.now().toIso8601String()),
   );
+}
+
+/// ✅ EXTENSION: Add wrapper method for proper response parsing
+extension TourGuideApiServiceExtension on TourGuideApiService {
+  /// Check-in guest by QR code with proper response parsing
+  Future<IndividualGuestCheckInResponse> checkInGuestByQR(
+    CheckInGuestByQRRequest request,
+  ) async {
+    try {
+      final responseData = await checkInGuestByQRRaw(request);
+
+      // Parse backend response format
+      if (responseData is Map<String, dynamic>) {
+        // Backend returns: { "data": {...}, "isSuccess": true, "message": "...", "success": true }
+        final success = responseData['success'] == true || responseData['isSuccess'] == true;
+        final message = responseData['message'] ?? '';
+        final data = responseData['data'] as Map<String, dynamic>?;
+
+        if (success && data != null) {
+          // Convert backend data to mobile format
+          final guestInfo = TourBookingGuestModel(
+            id: data['id'] ?? '',
+            guestName: data['guestName'] ?? '',
+            guestEmail: data['guestEmail'] ?? '',
+            guestPhone: null,
+            isCheckedIn: data['isCheckedIn'] == true,
+            checkInTime: data['checkInTime'],
+            checkInNotes: data['checkInNotes'],
+            tourBookingId: data['tourBookingId'],
+            bookingCode: data['bookingCode'],
+            bookingId: data['bookingId'],
+            customerName: data['customerName'],
+            totalGuests: data['totalGuests'],
+          );
+
+          return IndividualGuestCheckInResponse(
+            success: true,
+            message: message,
+            guestInfo: guestInfo,
+            checkInTime: data['checkInTime'],
+          );
+        } else {
+          return IndividualGuestCheckInResponse(
+            success: false,
+            message: message.isNotEmpty ? message : 'Check-in thất bại',
+          );
+        }
+      }
+
+      // Fallback for unexpected response format
+      return IndividualGuestCheckInResponse(
+        success: false,
+        message: 'Định dạng response không hợp lệ',
+      );
+    } catch (e) {
+      return IndividualGuestCheckInResponse(
+        success: false,
+        message: 'Lỗi kết nối: $e',
+      );
+    }
+  }
 }
