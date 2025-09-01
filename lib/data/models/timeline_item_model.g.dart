@@ -34,19 +34,3 @@ Map<String, dynamic> _$TimelineItemModelToJson(TimelineItemModel instance) =>
       'completionNotes': instance.completionNotes,
       'specialtyShop': instance.specialtyShopModel,
     };
-
-SpecialtyShopModel _$SpecialtyShopModelFromJson(Map<String, dynamic> json) =>
-    SpecialtyShopModel(
-      id: json['id'] as String,
-      shopName: json['shopName'] as String,
-      address: json['address'] as String,
-      description: json['description'] as String?,
-    );
-
-Map<String, dynamic> _$SpecialtyShopModelToJson(SpecialtyShopModel instance) =>
-    <String, dynamic>{
-      'id': instance.id,
-      'shopName': instance.shopName,
-      'address': instance.address,
-      'description': instance.description,
-    };

@@ -4,7 +4,7 @@ import 'specialty_shop_model.dart';
 part 'timeline_progress_models.g.dart';
 
 /// Timeline item with progress information
-@JsonSerializable()
+@JsonSerializable(explicitToJson: true)
 class TimelineWithProgressDto {
   final String id;
   final String tourSlotId;
@@ -68,7 +68,7 @@ class TimelineWithProgressDto {
 }
 
 /// Progress summary for timeline
-@JsonSerializable()
+@JsonSerializable(explicitToJson: true)
 class TimelineProgressSummaryDto {
   final String tourSlotId;
   final int totalItems;
@@ -105,7 +105,7 @@ class TimelineProgressSummaryDto {
 }
 
 /// Timeline progress response
-@JsonSerializable()
+@JsonSerializable(explicitToJson: true)
 class TimelineProgressResponse {
   final List<TimelineWithProgressDto> timeline;
   final TimelineProgressSummaryDto summary;
@@ -176,7 +176,7 @@ class TourDetailsInfoDto {
 }
 
 /// Complete timeline response
-@JsonSerializable()
+@JsonSerializable(explicitToJson: true)
 class CompleteTimelineResponse {
   final bool success;
   final String message;

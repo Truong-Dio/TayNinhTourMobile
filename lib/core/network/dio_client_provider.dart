@@ -4,7 +4,7 @@ import 'package:get_it/get_it.dart';
 import 'package:logger/logger.dart';
 
 import '../constants/api_constants.dart';
-import 'dio_client.dart'; // Assuming interceptors are in this file
+import 'dio_client.dart';
 
 class DioClientProvider {
   final GetIt sl;
@@ -27,10 +27,10 @@ class DioClientProvider {
 
     // Add interceptors
     dio.interceptors.addAll([
-      if (!isPublic) _AuthInterceptor(sl<FlutterSecureStorage>(), sl<Logger>()),
-      _LoggingInterceptor(sl<Logger>()),
-      _ResponseUnwrapInterceptor(sl<Logger>()),
-      _ErrorInterceptor(sl<Logger>()),
+      if (!isPublic) AuthInterceptor(sl<FlutterSecureStorage>(), sl<Logger>()),
+      LoggingInterceptor(sl<Logger>()),
+      ResponseUnwrapInterceptor(sl<Logger>()),
+      ErrorInterceptor(sl<Logger>()),
     ]);
 
     return dio;

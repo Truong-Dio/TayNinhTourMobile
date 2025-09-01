@@ -1,5 +1,6 @@
 import 'package:json_annotation/json_annotation.dart';
 import '../../domain/entities/timeline_item.dart';
+import 'specialty_shop_model.dart' show SpecialtyShopModel;
 
 part 'timeline_item_model.g.dart';
 
@@ -17,7 +18,7 @@ class TimelineItemModel extends TimelineItem {
     super.completedAt,
     super.completionNotes,
     this.specialtyShopModel,
-  }) : super(specialtyShop: specialtyShopModel);
+  }) : super(specialtyShop: null);
 
   factory TimelineItemModel.fromJson(Map<String, dynamic> json) => _$TimelineItemModelFromJson(json);
 
@@ -32,30 +33,12 @@ class TimelineItemModel extends TimelineItem {
       isCompleted: isCompleted,
       completedAt: completedAt,
       completionNotes: completionNotes,
-      specialtyShop: specialtyShopModel?.toEntity(),
-    );
-  }
-}
-
-@JsonSerializable()
-class SpecialtyShopModel extends SpecialtyShop {
-  const SpecialtyShopModel({
-    required super.id,
-    required super.shopName,
-    required super.address,
-    super.description,
-  });
-  
-  factory SpecialtyShopModel.fromJson(Map<String, dynamic> json) => _$SpecialtyShopModelFromJson(json);
-  
-  Map<String, dynamic> toJson() => _$SpecialtyShopModelToJson(this);
-  
-  SpecialtyShop toEntity() {
-    return SpecialtyShop(
-      id: id,
-      shopName: shopName,
-      address: address,
-      description: description,
+      specialtyShop: specialtyShopModel != null ? SpecialtyShop(
+        id: specialtyShopModel!.id,
+        shopName: specialtyShopModel!.shopName ?? '',
+        address: specialtyShopModel!.address ?? '',
+        description: specialtyShopModel!.description,
+      ) : null,
     );
   }
 }

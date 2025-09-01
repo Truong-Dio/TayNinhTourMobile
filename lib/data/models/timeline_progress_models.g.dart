@@ -47,7 +47,7 @@ Map<String, dynamic> _$TimelineWithProgressDtoToJson(
       'completedAt': instance.completedAt?.toIso8601String(),
       'completionNotes': instance.completionNotes,
       'canComplete': instance.canComplete,
-      'specialtyShop': instance.specialtyShop,
+      'specialtyShop': instance.specialtyShop?.toJson(),
       'completedByName': instance.completedByName,
       'completionDurationMinutes': instance.completionDurationMinutes,
       'statusText': instance.statusText,
@@ -81,8 +81,8 @@ Map<String, dynamic> _$TimelineProgressSummaryDtoToJson(
       'tourSlotId': instance.tourSlotId,
       'totalItems': instance.totalItems,
       'completedItems': instance.completedItems,
-      'nextItem': instance.nextItem,
-      'lastCompletedItem': instance.lastCompletedItem,
+      'nextItem': instance.nextItem?.toJson(),
+      'lastCompletedItem': instance.lastCompletedItem?.toJson(),
       'estimatedCompletionTime':
           instance.estimatedCompletionTime?.toIso8601String(),
     };
@@ -107,10 +107,10 @@ TimelineProgressResponse _$TimelineProgressResponseFromJson(
 Map<String, dynamic> _$TimelineProgressResponseToJson(
         TimelineProgressResponse instance) =>
     <String, dynamic>{
-      'timeline': instance.timeline,
-      'summary': instance.summary,
-      'tourSlot': instance.tourSlot,
-      'tourDetails': instance.tourDetails,
+      'timeline': instance.timeline.map((e) => e.toJson()).toList(),
+      'summary': instance.summary.toJson(),
+      'tourSlot': instance.tourSlot.toJson(),
+      'tourDetails': instance.tourDetails.toJson(),
       'canModifyProgress': instance.canModifyProgress,
       'lastUpdated': instance.lastUpdated.toIso8601String(),
     };
@@ -180,9 +180,9 @@ Map<String, dynamic> _$CompleteTimelineResponseToJson(
     <String, dynamic>{
       'success': instance.success,
       'message': instance.message,
-      'completedItem': instance.completedItem,
-      'summary': instance.summary,
-      'nextItem': instance.nextItem,
+      'completedItem': instance.completedItem?.toJson(),
+      'summary': instance.summary?.toJson(),
+      'nextItem': instance.nextItem?.toJson(),
       'isTimelineCompleted': instance.isTimelineCompleted,
       'completedAt': instance.completedAt.toIso8601String(),
       'warnings': instance.warnings,
