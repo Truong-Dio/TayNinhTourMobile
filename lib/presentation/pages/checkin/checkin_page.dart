@@ -380,8 +380,8 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
                 unselectedLabelColor: Colors.white70,
                 tabs: const [
                   Tab(
-                    icon: Icon(Icons.book),
-                    text: 'Theo Booking',
+                    icon: Icon(Icons.groups),
+                    text: 'Đại Diện',
                   ),
                   Tab(
                     icon: Icon(Icons.person),
@@ -407,7 +407,7 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
                         child: TabBarView(
                           controller: _tabController,
                           children: [
-                            // Tab 1: Bookings View
+                            // Tab 1: Group Representative View
                             Column(
                               children: [
                                 _buildSearchBar(),
@@ -447,10 +447,8 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
     final isGuestTab = currentTab == 1;
 
     if (isBookingTab) {
-      // Tab "Theo Booking": Chỉ show QR button nếu có Group bookings
-      final tourGuideProvider = context.read<TourGuideProvider>();
-      final bookings = tourGuideProvider.currentSlotBookingsList;
-      return bookings.any((booking) => (booking.bookingType ?? "Individual") == "GroupRepresentative");
+      // Tab "Đại Diện": Always show QR button for group representatives
+      return true; // Group representatives can always scan QR
     } else if (isGuestTab) {
       // Tab "Khách lẻ": Chỉ show QR button nếu có Individual guests
       final tourGuideProvider = context.read<TourGuideProvider>();
@@ -476,14 +474,24 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
             final bookings = provider.currentSlotBookingsList;
             final guests = provider.currentSlotGuests;
             
-            // Tab 1 (Bookings) statistics
-            final totalBookings = bookings.length;
-            final checkedInBookings = bookings.where((b) => b.isCheckedIn).length;
-            final totalGuestsInBookings = bookings.fold<int>(0, (sum, b) => sum + b.numberOfGuests);
+            // Tab 1 (Group Representative) statistics - Only count GroupRepresentative bookings
+            final groupBookings = bookings.where((b) => (b.bookingType ?? "Individual") == "GroupRepresentative").toList();
+            final totalBookings = groupBookings.length;
+            final checkedInBookings = groupBookings.where((b) => b.isCheckedIn).length;
+            final totalGuestsInBookings = groupBookings.fold<int>(0, (sum, b) => sum + b.numberOfGuests);
             
-            // Tab 2 (Individual Guests) statistics  
-            final totalIndividualGuests = guests.length;
-            final checkedInGuests = guests.where((g) => g.isCheckedIn).length;
+            // Tab 2 (Individual Guests) statistics - Only count guests from Individual bookings
+            final individualGuests = guests.where((guest) {
+              // Find the booking for this guest to check booking type
+              final booking = bookings.firstWhere(
+                (b) => b.id == guest.bookingId,
+                orElse: () => bookings.first,
+              );
+              // Only count guests from Individual bookings
+              return (booking.bookingType ?? "Individual") == "Individual";
+            }).toList();
+            final totalIndividualGuests = individualGuests.length;
+            final checkedInGuests = individualGuests.where((g) => g.isCheckedIn).length;
             
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -544,9 +552,9 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
                             children: [
                               Expanded(
                                 child: _buildCompactStatCard(
-                                  'Booking',
+                                  'Nhóm',
                                   '$totalBookings',
-                                  Icons.book,
+                                  Icons.groups,
                                   Colors.blue,
                                 ),
                               ),
@@ -575,7 +583,7 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
                             children: [
                               Expanded(
                                 child: _buildCompactStatCard(
-                                  'Tổng khách',
+                                  'Khách lẻ',
                                   '$totalIndividualGuests',
                                   Icons.person,
                                   Colors.blue,
@@ -865,7 +873,9 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
 
   Widget _buildGuestListView(TourGuideProvider tourGuideProvider) {
     // ✅ NEW: Use TourSlot bookings instead of TourOperation bookings
-    final bookings = tourGuideProvider.currentSlotBookingsList;
+    // Filter to show only GroupRepresentative bookings
+    final allBookings = tourGuideProvider.currentSlotBookingsList;
+    final bookings = allBookings.where((b) => (b.bookingType ?? "Individual") == "GroupRepresentative").toList();
 
     if (bookings.isEmpty) {
       return RefreshIndicator(
@@ -886,12 +896,12 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
                     Icon(Icons.people_outline, size: 64, color: Colors.grey),
                     SizedBox(height: 16),
                     Text(
-                      'Chưa có booking nào',
+                      'Chưa có đại diện nhóm nào',
                       style: TextStyle(fontSize: 18, color: Colors.grey),
                     ),
                     SizedBox(height: 8),
                     Text(
-                      'Tour slot này chưa có khách hàng đặt tour',
+                      'Tour slot này chưa có đại diện nhóm nào đặt tour',
                       style: TextStyle(color: Colors.grey),
                     ),
                   ],

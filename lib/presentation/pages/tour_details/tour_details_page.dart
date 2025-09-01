@@ -89,6 +89,18 @@ class _TourDetailsPageState extends State<TourDetailsPage> {
     }
   }
 
+  // Calculate total current bookings from all tour slots
+  int _getTotalCurrentBookings() {
+    if (tourSlots.isEmpty) return 0;
+    return tourSlots.fold(0, (sum, slot) => sum + (slot.currentBookings ?? 0));
+  }
+
+  // Calculate total max guests from all tour slots
+  int _getTotalMaxGuests() {
+    if (tourSlots.isEmpty) return 0;
+    return tourSlots.fold(0, (sum, slot) => sum + (slot.maxGuests ?? 0));
+  }
+
   @override
   Widget build(BuildContext context) {
     if (tour == null) {
@@ -220,7 +232,7 @@ class _TourDetailsPageState extends State<TourDetailsPage> {
                     _buildStatItem(
                       icon: Icons.people,
                       label: 'Khách',
-                      value: '${tour!.currentBookings}/${tour!.maxGuests}',
+                      value: '${_getTotalCurrentBookings()}/${_getTotalMaxGuests()}',
                     ),
                     const SizedBox(width: 24),
                     _buildStatItem(
@@ -355,7 +367,7 @@ class _TourDetailsPageState extends State<TourDetailsPage> {
                 Icon(Icons.schedule, color: Colors.indigo, size: 24),
                 const SizedBox(width: 12),
                 const Text(
-                  'Lịch trình Tour',
+                  'Danh Sách Tour Slots',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

@@ -35,16 +35,23 @@ class _IndividualGuestListWidgetState extends State<IndividualGuestListWidget> {
   List<TourBookingGuestModel> _getFilteredGuests(List<TourBookingGuestModel> guests) {
     var filtered = guests;
 
-    // ✅ NEW: Only show INDIVIDUAL guests (not group representatives and from single-guest bookings)
-    // Tab "Khách lẻ" chỉ show khách lẻ không thuộc booking đại diện
+    // ✅ FIXED: Only show guests from Individual bookings (not GroupRepresentative bookings)
+    // Tab "Khách lẻ" chỉ hiển thị khách từ booking loại Individual
     filtered = filtered.where((guest) {
-      // Logic: Show guests from bookings with only 1 guest (individual bookings)
-      // OR guests who are not group representatives in multi-guest bookings
-      final isFromSingleGuestBooking = (guest.totalGuests ?? 1) == 1;
-      final isNotGroupRepresentative = !(guest.isGroupRepresentative ?? false);
-
-      // Show if: single guest booking OR not a group representative
-      return isFromSingleGuestBooking || isNotGroupRepresentative;
+      // Get bookings list to check booking type
+      final provider = context.read<TourGuideProvider>();
+      final bookings = provider.currentSlotBookingsList;
+      
+      // Find the booking for this guest
+      final booking = bookings.firstWhere(
+        (b) => b.id == guest.bookingId,
+        orElse: () => bookings.first, // Fallback if not found
+      );
+      
+      // Only show guests from Individual bookings
+      final isFromIndividualBooking = (booking.bookingType ?? "Individual") == "Individual";
+      
+      return isFromIndividualBooking;
     }).toList();
 
     // Apply status filter
