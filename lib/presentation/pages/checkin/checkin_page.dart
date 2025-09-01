@@ -430,23 +430,11 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
                           ],
                         ),
                       ),
-
-                      // Bottom Action Bar
-                      _buildBottomActionBar(tourGuideProvider),
                     ],
                   ),
           );
         },
       ),
-      // Add floating action button for QR scanning
-      floatingActionButton: _selectedTourSlot != null && _shouldShowQRButton()
-          ? FloatingActionButton.extended(
-              onPressed: _openQRScanner,
-              icon: const Icon(Icons.qr_code_scanner),
-              label: const Text('Quét QR'),
-              backgroundColor: Theme.of(context).primaryColor,
-            )
-          : null,
     );
   }
 
@@ -1030,35 +1018,15 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
                       size: 24,
                     )
                   else
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Manual check-in icon button
-                        IconButton(
-                          onPressed: () => _handleManualCheckIn(booking),
-                          icon: const Icon(Icons.edit_note),
-                          iconSize: 20,
-                          padding: const EdgeInsets.all(8),
-                          constraints: const BoxConstraints(),
-                          color: Colors.grey[600],
-                          tooltip: 'Check-in thủ công',
-                        ),
-                        // QR scan button - primary
-                        Container(
-                          height: 32,
-                          child: ElevatedButton.icon(
-                            onPressed: () => _startQRCheckInProcess(booking),
-                            icon: const Icon(Icons.qr_code_scanner, size: 16),
-                            label: const Text('QR', style: TextStyle(fontSize: 13)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).primaryColor,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
-                              elevation: 0,
-                            ),
-                          ),
-                        ),
-                      ],
+                    // QR scan button - same style as Individual Guest tab
+                    IconButton(
+                      onPressed: () => _startQRCheckInProcess(booking),
+                      icon: const Icon(Icons.qr_code_scanner),
+                      iconSize: 20,
+                      padding: const EdgeInsets.all(8),
+                      constraints: const BoxConstraints(),
+                      color: Theme.of(context).primaryColor,
+                      tooltip: 'Check-in',
                     ),
                 ],
               ),

@@ -340,7 +340,7 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
                 _buildStatItem(
                   icon: Icons.people,
                   label: 'Khách đã đăng ký',
-                  value: '${slotDetails!.data.slot.currentBookings}/${slotDetails!.data.slot.maxGuests}',
+                  value: _getGuestCountDisplay(),
                 ),
                 const SizedBox(width: 24),
                 _buildStatItem(
@@ -831,6 +831,49 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
       return now.isAfter(deadline) && now.isBefore(date);
     } catch (e) {
       return false;
+    }
+  }
+
+  String _getGuestCountDisplay() {
+    // First try to get from slot data
+    int currentBookings = slotDetails!.data.slot.currentBookings;
+    int maxGuests = slotDetails!.data.slot.maxGuests;
+    
+    // If slot data is 0, try to get from statistics
+    if (currentBookings == 0 && maxGuests == 0) {
+      // Use statistics data as fallback
+      currentBookings = slotDetails!.data.statistics.totalGuests;
+      maxGuests = slotDetails!.data.slot.maxGuests;
+      
+      // If maxGuests is still 0, calculate from bookedUsers
+      if (maxGuests == 0) {
+        // Calculate total capacity from booked users
+        int totalCapacity = 0;
+        for (var user in slotDetails!.data.bookedUsers) {
+          totalCapacity += user.numberOfGuests;
+        }
+        // Set a reasonable max if we have bookings
+        if (totalCapacity > 0) {
+          maxGuests = totalCapacity + 10; // Add some buffer
+        }
+      }
+    }
+    
+    // If we still don't have data, use bookedUsers count
+    if (currentBookings == 0 && slotDetails!.data.bookedUsers.isNotEmpty) {
+      // Count total guests from bookedUsers
+      int totalGuests = 0;
+      for (var user in slotDetails!.data.bookedUsers) {
+        totalGuests += user.numberOfGuests;
+      }
+      currentBookings = totalGuests;
+    }
+    
+    // Return formatted string
+    if (maxGuests > 0) {
+      return '$currentBookings/$maxGuests';
+    } else {
+      return '$currentBookings';
     }
   }
 }
