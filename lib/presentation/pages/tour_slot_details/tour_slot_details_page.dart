@@ -4,9 +4,12 @@ import 'package:provider/provider.dart';
 import '../../providers/tour_guide_provider.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/error_widget.dart';
+import '../../widgets/common/simple_modern_widgets.dart';
 import '../../../data/datasources/tour_guide_api_service.dart';
 import '../../../data/models/tour_slot_model.dart';
 import '../../../data/models/timeline_progress_models.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../domain/entities/timeline_item.dart';
 
 import '../checkin/checkin_page.dart';
 import '../timeline/timeline_progress_page.dart';
@@ -259,10 +262,12 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
               _buildSlotInfoCard(),
               _buildQuickActionsCard(),
               _buildTimelineCard(),
+              const SizedBox(height: 100), // Space for bottom button
             ],
           ),
         ),
       ),
+      bottomNavigationBar: _buildBottomCompleteTourButton(),
     );
   }
 
@@ -470,29 +475,6 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildQuickActionButton(
-                    icon: Icons.timeline,
-                    label: 'Timeline',
-                    color: Colors.green,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => TimelineProgressPage(
-                            tourId: widget.tourId,
-                            tourSlotId: widget.slotId, // Pass tour slot ID for per-slot timeline
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildQuickActionButton(
                     icon: Icons.notifications,
                     label: 'Thông báo',
                     color: Colors.purple,
@@ -504,15 +486,6 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
                         ),
                       );
                     },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildQuickActionButton(
-                    icon: Icons.done_all,
-                    label: 'Hoàn thành',
-                    color: Colors.orange,
-                    onTap: _showCompleteTourDialog,
                   ),
                 ),
               ],
@@ -597,7 +570,7 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
               padding: EdgeInsets.all(20),
               child: LoadingWidget(message: 'Đang tải lịch trình...'),
             )
-          else if (timeline.isEmpty)
+          else if (timelineProgress == null || timelineProgress!.timeline.isEmpty)
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -619,120 +592,536 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
               ),
             )
           else
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: timeline.length,
-              itemBuilder: (context, index) {
-                final item = timeline[index];
-                final isLast = index == timeline.length - 1;
-                return _buildTimelineItem(item, isLast);
-              },
-            ),
+            _buildTimelineProgressContent(),
         ],
       ),
     );
   }
 
-  Widget _buildTimelineItem(TimelineItemData item, bool isLast) {
-    final isCompleted = item.isCompleted;
+  Widget _buildTimelineProgressContent() {
+    final items = timelineProgress!.timeline;
+    final completedCount = items.where((item) => item.isCompleted).length;
+    final totalCount = items.length;
+    final progress = totalCount > 0 ? completedCount / totalCount : 0.0;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+    return Column(
+      children: [
+        // Progress header
+        Container(
+          margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: AppTheme.primaryGradient,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Tiến độ Timeline',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    '$completedCount/$totalCount',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              LinearProgressIndicator(
+                value: progress,
+                backgroundColor: Colors.white.withOpacity(0.3),
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                progress == 1.0
+                    ? 'Tất cả điểm đã hoàn thành!'
+                    : 'Còn ${totalCount - completedCount} điểm chưa hoàn thành',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.white.withOpacity(0.9),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Timeline items
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            final isNext = _getNextIncompleteIndex(items) == index;
+            final isLast = index == items.length - 1;
+            return _buildTimelineProgressItem(item, isNext, isLast);
+          },
+        ),
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
+  int _getNextIncompleteIndex(List<TimelineWithProgressDto> items) {
+    for (int i = 0; i < items.length; i++) {
+      if (!items[i].isCompleted) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  Widget _buildTimelineProgressItem(TimelineWithProgressDto item, bool isNext, bool isLast) {
+    final canComplete = !item.isCompleted && (_canCompleteProgressItem(item, timelineProgress!.timeline) || isNext);
+    final canModifyProgress = timelineProgress?.canModifyProgress ?? true;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Timeline indicator
           Column(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
-                  color: isCompleted ? Colors.green : Colors.grey[300],
+                  color: item.isCompleted
+                      ? AppTheme.successColor
+                      : isNext
+                          ? AppTheme.warningColor
+                          : Colors.grey[300],
                   shape: BoxShape.circle,
+                  border: Border.all(
+                    color: item.isCompleted
+                        ? AppTheme.successColor
+                        : isNext
+                            ? AppTheme.warningColor
+                            : Colors.grey[400]!,
+                    width: 2,
+                  ),
                 ),
                 child: Icon(
-                  isCompleted ? Icons.check : Icons.schedule,
-                  color: isCompleted ? Colors.white : Colors.grey[600],
-                  size: 20,
+                  item.isCompleted
+                      ? Icons.check
+                      : isNext
+                          ? Icons.radio_button_unchecked
+                          : Icons.circle,
+                  color: item.isCompleted
+                      ? Colors.white
+                      : isNext
+                          ? Colors.white
+                          : Colors.grey[600],
+                  size: 16,
                 ),
               ),
-              if (!isLast)
+              if (!isLast) ...[
                 Container(
                   width: 2,
                   height: 40,
-                  color: Colors.grey[300],
+                  color: item.isCompleted
+                      ? AppTheme.successColor
+                      : Colors.grey[300],
                 ),
+              ],
             ],
           ),
           const SizedBox(width: 16),
+          // Timeline content
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      item.checkInTime,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: isCompleted ? Colors.green : Colors.indigo,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    if (isCompleted)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
+            child: SimpleGlassmorphicCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.checkInTime,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryColor,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              item.activity,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
                         ),
-                        child: const Text(
-                          'Hoàn thành',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.green,
+                      ),
+                      if (item.isCompleted) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppTheme.successColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppTheme.successColor.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Text(
+                            'Hoàn thành',
+                            style: TextStyle(
+                              color: AppTheme.successColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                      ),
+                      ] else if (isNext) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppTheme.warningColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppTheme.warningColor.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Text(
+                            'Tiếp theo',
+                            style: TextStyle(
+                              color: AppTheme.warningColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  if (item.specialtyShop != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.store,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            item.specialtyShop?.shopName ?? 'Không có cửa hàng',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  item.activity,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                if (item.location != null)
-                  Text(
-                    item.location!,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
+                  if (item.isCompleted && item.completedAt != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          size: 16,
+                          color: AppTheme.successColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Hoàn thành lúc: ${_formatProgressDateTime(item.completedAt!)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.successColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                if (item.completionNotes != null && item.completionNotes!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      'Ghi chú: ${item.completionNotes}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontStyle: FontStyle.italic,
-                        color: Colors.grey[500],
+                  ],
+                  if (item.completionNotes != null && item.completionNotes!.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        item.completionNotes!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[700],
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
                     ),
-                  ),
-              ],
+                  ],
+                  if (canComplete && canModifyProgress) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _completeTimelineProgressItem(item),
+                            icon: const Icon(Icons.check, size: 16),
+                            label: const Text('Đã tới'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.successColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          onPressed: () => _addProgressNotes(item),
+                          icon: const Icon(Icons.note_add, size: 16),
+                          label: const Text('Ghi chú'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey[600],
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else if (canComplete && !canModifyProgress) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.amber[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.amber[200]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.visibility,
+                            size: 16,
+                            color: Colors.amber[700],
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Chế độ chỉ xem - Cần tour slot ở trạng thái "Đang thực hiện" để cập nhật',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.amber[700],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  bool _canCompleteProgressItem(TimelineWithProgressDto item, List<TimelineWithProgressDto> allItems) {
+    // Check if all previous items are completed
+    final currentIndex = allItems.indexOf(item);
+    if (currentIndex == 0) return true;
+
+    for (int i = 0; i < currentIndex; i++) {
+      if (!allItems[i].isCompleted) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  Future<void> _completeTimelineProgressItem(TimelineWithProgressDto item) async {
+    // Check if timeline can be modified when using tour slot
+    if (timelineProgress != null && !timelineProgress!.canModifyProgress) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Chỉ có thể cập nhật timeline khi tour slot đang trong trạng thái "Đang thực hiện". Hiện tại chỉ có thể xem timeline.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final provider = context.read<TourGuideProvider>();
+      final success = await provider.completeTimelineItemForSlot(widget.slotId, item.id);
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đã hoàn thành: ${item.activity}'),
+            backgroundColor: AppTheme.successColor,
+          ),
+        );
+        // Reload timeline to get updated data
+        await _loadTourSlotTimeline(widget.slotId);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Có lỗi xảy ra khi cập nhật timeline'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _addProgressNotes(TimelineWithProgressDto item) async {
+    final controller = TextEditingController();
+
+    final notes = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Thêm ghi chú'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            hintText: 'Nhập ghi chú...',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: const Text('Lưu'),
+          ),
+        ],
+      ),
+    );
+
+    if (notes != null && notes.isNotEmpty) {
+      // Check if timeline can be modified when using tour slot
+      if (timelineProgress != null && !timelineProgress!.canModifyProgress) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Chỉ có thể cập nhật timeline khi tour slot đang trong trạng thái "Đang thực hiện". Hiện tại chỉ có thể xem timeline.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      try {
+        final provider = context.read<TourGuideProvider>();
+        final success = await provider.completeTimelineItemForSlot(widget.slotId, item.id, notes: notes);
+
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Đã hoàn thành: ${item.activity}'),
+              backgroundColor: AppTheme.successColor,
+            ),
+          );
+          // Reload timeline to get updated data
+          await _loadTourSlotTimeline(widget.slotId);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Có lỗi xảy ra khi cập nhật timeline'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  String _formatProgressDateTime(DateTime dateTime) {
+    return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')} ${dateTime.day}/${dateTime.month}';
+  }
+
+  Widget _buildBottomCompleteTourButton() {
+    // Check if all timeline items are completed
+    final allCompleted = timelineProgress != null &&
+        timelineProgress!.timeline.isNotEmpty &&
+        timelineProgress!.timeline.every((item) => item.isCompleted);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: ElevatedButton.icon(
+            onPressed: allCompleted ? _showCompleteTourDialog : null,
+            icon: const Icon(Icons.flag, size: 24),
+            label: const Text(
+              'Hoàn thành tour',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: allCompleted ? AppTheme.successColor : Colors.grey,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: allCompleted ? 4 : 0,
+            ),
+          ),
+        ),
       ),
     );
   }
