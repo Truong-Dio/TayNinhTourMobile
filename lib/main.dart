@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:logger/logger.dart';
 
@@ -8,6 +9,8 @@ import 'core/network/dio_client.dart';
 import 'data/datasources/auth_api_service.dart';
 import 'data/datasources/tour_guide_api_service.dart';
 import 'data/datasources/user_api_service.dart';
+import 'data/services/incident_service.dart';
+import 'data/services/api_service.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/tour_guide_provider.dart';
 import 'presentation/providers/user_provider.dart';
@@ -39,6 +42,10 @@ void main() async {
     dioClient.dio,
     baseUrl: ApiConstants.baseUrl,
   );
+
+  // Initialize additional services
+  final apiService = ApiService(dioClient.dio);
+  final incidentService = IncidentService(apiService);
   
   runApp(TayNinhTourApp(
     storage: storage,
@@ -46,6 +53,7 @@ void main() async {
     authApiService: authApiService,
     tourGuideApiService: tourGuideApiService,
     userApiService: userApiService,
+    incidentService: incidentService,
   ));
 }
 
@@ -55,7 +63,8 @@ class TayNinhTourApp extends StatelessWidget {
   final AuthApiService authApiService;
   final TourGuideApiService tourGuideApiService;
   final UserApiService userApiService;
-  
+  final IncidentService incidentService;
+
   const TayNinhTourApp({
     super.key,
     required this.storage,
@@ -63,6 +72,7 @@ class TayNinhTourApp extends StatelessWidget {
     required this.authApiService,
     required this.tourGuideApiService,
     required this.userApiService,
+    required this.incidentService,
   });
 
   @override
@@ -88,6 +98,8 @@ class TayNinhTourApp extends StatelessWidget {
             logger: logger,
           ),
         ),
+        // Add incident service as a provider
+        Provider<IncidentService>.value(value: incidentService),
       ],
       child: MaterialApp(
         title: AppConstants.appName,

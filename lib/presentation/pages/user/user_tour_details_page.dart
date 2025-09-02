@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../../providers/user_provider.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/error_widget.dart';
+import '../../widgets/incident/incident_summary_widget.dart';
+import '../../blocs/incident/incident_bloc.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/user_tour_booking.dart';
 import '../../../data/models/user_tour_booking_model.dart';
+import '../../../data/services/incident_service.dart';
 
 import '../../../data/models/timeline_progress_models.dart';
 /// Màn hình chi tiết tour chỉ đọc cho người dùng
@@ -90,6 +94,7 @@ class _UserTourDetailsPageState extends State<UserTourDetailsPage> {
               child: Column(
                 children: [
                   _buildBookingInfoCard(provider.selectedBooking!),
+                  _buildIncidentSection(provider.selectedBooking!),
                   _buildTourTimelineSection(provider),
                 ],
               ),
@@ -288,6 +293,42 @@ class _UserTourDetailsPageState extends State<UserTourDetailsPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildIncidentSection(UserTourBooking booking) {
+    // Only show incidents if the booking has a tour slot ID and is confirmed/completed
+    if (booking.tourSlotId == null ||
+        (booking.status != 'Confirmed' && booking.status != 'Completed')) {
+      return const SizedBox.shrink();
+    }
+
+    // Sử dụng FutureBuilder để kiểm tra xem có sự cố nào không trước khi hiển thị
+    return FutureBuilder<bool>(
+      future: context.read<IncidentService>().canViewIncidents(booking.tourSlotId!),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          // Đang kiểm tra - không hiển thị gì
+          return const SizedBox.shrink();
+        }
+
+        if (!snapshot.hasData || !snapshot.data!) {
+          // Không có quyền xem hoặc không có sự cố - ẩn hoàn toàn
+          return const SizedBox.shrink();
+        }
+
+        // Có quyền xem và có thể có sự cố - hiển thị widget
+        return BlocProvider(
+          create: (context) => IncidentBloc(
+            incidentService: context.read<IncidentService>(),
+          ),
+          child: IncidentSummaryWidget(
+            tourSlotId: booking.tourSlotId!,
+            tourName: booking.tourOperation.tourTitle,
+            maxItemsToShow: 2, // Show fewer items in the summary
+          ),
+        );
+      },
     );
   }
 
