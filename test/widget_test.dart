@@ -14,6 +14,8 @@ import 'package:tayninh_tour_mobile/core/network/dio_client.dart';
 import 'package:tayninh_tour_mobile/data/datasources/auth_api_service.dart';
 import 'package:tayninh_tour_mobile/data/datasources/tour_guide_api_service.dart';
 import 'package:tayninh_tour_mobile/data/datasources/user_api_service.dart';
+import 'package:tayninh_tour_mobile/data/services/api_service.dart';
+import 'package:tayninh_tour_mobile/data/services/incident_service.dart';
 
 void main() {
   testWidgets('App loads correctly', (WidgetTester tester) async {
@@ -25,6 +27,10 @@ void main() {
     final tourGuideApiService = TourGuideApiService(dioClient.dio);
     final userApiService = UserApiService(dioClient.dio);
 
+    // Initialize additional services
+    final apiService = ApiService(dioClient.dio);
+    final incidentService = IncidentService(apiService);
+
     // Build our app and trigger a frame.
     await tester.pumpWidget(TayNinhTourApp(
       storage: storage,
@@ -32,6 +38,7 @@ void main() {
       authApiService: authApiService,
       tourGuideApiService: tourGuideApiService,
       userApiService: userApiService,
+      incidentService: incidentService,
     ));
 
     // Verify that login page loads

@@ -30,7 +30,7 @@ class DioClientProvider {
       if (!isPublic) AuthInterceptor(sl<FlutterSecureStorage>(), sl<Logger>()),
       LoggingInterceptor(sl<Logger>()),
       ResponseUnwrapInterceptor(sl<Logger>()),
-      ErrorInterceptor(sl<Logger>()),
+      ErrorInterceptor(sl<Logger>(), sl<FlutterSecureStorage>()),
     ]);
 
     return dio;

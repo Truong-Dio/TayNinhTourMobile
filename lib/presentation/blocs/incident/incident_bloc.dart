@@ -42,6 +42,15 @@ class RefreshIncidents extends IncidentEvent {
   List<Object?> get props => [tourSlotId];
 }
 
+class ReportIncidentEvent extends IncidentEvent {
+  final ReportIncidentRequest request;
+
+  const ReportIncidentEvent(this.request);
+
+  @override
+  List<Object?> get props => [request];
+}
+
 // States
 abstract class IncidentState extends Equatable {
   final List<TourIncident> incidents;
@@ -90,6 +99,20 @@ class IncidentError extends IncidentState {
   List<Object?> get props => [message, incidents, hasReachedMax, currentPage];
 }
 
+class IncidentReportSuccess extends IncidentState {
+  final ReportIncidentResponse reportedIncident;
+
+  const IncidentReportSuccess({
+    required this.reportedIncident,
+    super.incidents = const [],
+    super.hasReachedMax = false,
+    super.currentPage = 0,
+  });
+
+  @override
+  List<Object?> get props => [reportedIncident, incidents, hasReachedMax, currentPage];
+}
+
 // BLoC
 class IncidentBloc extends Bloc<IncidentEvent, IncidentState> {
   final IncidentService _incidentService;
@@ -101,6 +124,7 @@ class IncidentBloc extends Bloc<IncidentEvent, IncidentState> {
     on<LoadTourIncidents>(_onLoadTourIncidents);
     on<LoadMoreIncidents>(_onLoadMoreIncidents);
     on<RefreshIncidents>(_onRefreshIncidents);
+    on<ReportIncidentEvent>(_onReportIncident);
   }
 
   Future<void> _onLoadTourIncidents(
@@ -207,6 +231,38 @@ class IncidentBloc extends Bloc<IncidentEvent, IncidentState> {
       LoadTourIncidents(tourSlotId: event.tourSlotId, refresh: true),
       emit,
     );
+  }
+
+  Future<void> _onReportIncident(
+    ReportIncidentEvent event,
+    Emitter<IncidentState> emit,
+  ) async {
+    try {
+      final response = await _incidentService.reportIncident(event.request);
+
+      if (response.success && response.data != null) {
+        emit(IncidentReportSuccess(
+          reportedIncident: response.data!,
+          incidents: state.incidents,
+          hasReachedMax: state.hasReachedMax,
+          currentPage: state.currentPage,
+        ));
+      } else {
+        emit(IncidentError(
+          message: response.message ?? 'Có lỗi xảy ra khi báo cáo sự cố',
+          incidents: state.incidents,
+          hasReachedMax: state.hasReachedMax,
+          currentPage: state.currentPage,
+        ));
+      }
+    } catch (e) {
+      emit(IncidentError(
+        message: 'Có lỗi không xác định xảy ra: ${e.toString()}',
+        incidents: state.incidents,
+        hasReachedMax: state.hasReachedMax,
+        currentPage: state.currentPage,
+      ));
+    }
   }
 }
 

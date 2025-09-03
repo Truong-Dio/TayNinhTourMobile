@@ -259,24 +259,24 @@ class CompleteTimelineRequest {
   };
 }
 
-/// Report incident request
+/// Report incident request (Updated to use TourSlotId)
 class ReportIncidentRequest {
-  final String tourOperationId;
+  final String tourSlotId;  // ✅ CHANGED: tourOperationId → tourSlotId
   final String title;
   final String description;
   final String severity;
   final List<String>? imageUrls;
-  
+
   ReportIncidentRequest({
-    required this.tourOperationId,
+    required this.tourSlotId,  // ✅ CHANGED: tourOperationId → tourSlotId
     required this.title,
     required this.description,
     required this.severity,
     this.imageUrls,
   });
-  
+
   Map<String, dynamic> toJson() => {
-    'tourOperationId': tourOperationId,
+    'tourSlotId': tourSlotId,  // ✅ CHANGED: tourOperationId → tourSlotId
     'title': title,
     'description': description,
     'severity': severity,

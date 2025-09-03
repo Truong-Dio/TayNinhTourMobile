@@ -884,9 +884,9 @@ class TourGuideProvider extends ChangeNotifier {
     }
   }
 
-  /// Report an incident
+  /// Report an incident (Updated to use TourSlotId)
   Future<bool> reportIncident({
-    required String tourOperationId,
+    required String tourSlotId,  // ✅ CHANGED: tourOperationId → tourSlotId
     required String title,
     required String description,
     required String severity,
@@ -897,7 +897,7 @@ class TourGuideProvider extends ChangeNotifier {
       _clearError();
 
       final request = ReportIncidentRequest(
-        tourOperationId: tourOperationId,
+        tourSlotId: tourSlotId,  // ✅ CHANGED: tourOperationId → tourSlotId
         title: title,
         description: description,
         severity: severity,

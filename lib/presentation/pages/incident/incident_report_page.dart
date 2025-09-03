@@ -117,8 +117,15 @@ class _IncidentReportPageState extends State<IncidentReportPage> {
         }
       }
 
+      // ✅ CHANGED: Use tourSlotId instead of tourOperationId
+      final tourSlotId = _selectedTour!.currentSlot?.id;
+      if (tourSlotId == null) {
+        _showMessage('Không tìm thấy thông tin tour slot. Vui lòng thử lại.', isError: true);
+        return;
+      }
+
       final success = await tourGuideProvider.reportIncident(
-        tourOperationId: _selectedTour!.id,
+        tourSlotId: tourSlotId,  // ✅ CHANGED: tourOperationId → tourSlotId
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
         severity: _selectedSeverity,

@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:logger/logger.dart';
+import 'dart:async';
 import 'dart:convert';
 
+import '../../core/auth/auth_state_notifier.dart';
 import '../../data/datasources/auth_api_service.dart';
 import '../../domain/entities/user.dart';
 import '../../core/constants/app_constants.dart';
@@ -12,6 +14,7 @@ class AuthProvider extends ChangeNotifier {
   final AuthApiService _authApiService;
   final FlutterSecureStorage _storage;
   final Logger _logger;
+  StreamSubscription<AuthEvent>? _authEventSubscription;
 
   AuthProvider({
     required AuthApiService authApiService,
@@ -19,7 +22,9 @@ class AuthProvider extends ChangeNotifier {
     required Logger logger,
   }) : _authApiService = authApiService,
        _storage = storage,
-       _logger = logger;
+       _logger = logger {
+    _listenToAuthEvents();
+  }
 
   // State
   bool _isLoading = false;
@@ -323,5 +328,32 @@ class AuthProvider extends ChangeNotifier {
   void _clearError() {
     _errorMessage = null;
     notifyListeners();
+  }
+
+  void _listenToAuthEvents() {
+    _authEventSubscription = AuthStateNotifier().authEvents.listen((event) {
+      switch (event) {
+        case AuthEvent.tokenExpired:
+          _logger.w('Token expired event received, logging out user');
+          _handleTokenExpired();
+          break;
+        case AuthEvent.logout:
+          _logger.i('Logout event received');
+          break;
+      }
+    });
+  }
+
+  void _handleTokenExpired() {
+    _isAuthenticated = false;
+    _user = null;
+    _clearError();
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _authEventSubscription?.cancel();
+    super.dispose();
   }
 }

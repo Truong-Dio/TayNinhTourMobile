@@ -4,6 +4,7 @@ import '../models/incident_model.dart';
 import 'api_service.dart';
 
 /// Service for handling incident-related API calls
+/// Updated to support TourSlot-based incident management
 class IncidentService {
   final ApiService _apiService;
 
@@ -156,9 +157,9 @@ class IncidentService {
 
   /// Get incident statistics for a tour slot
   /// Returns basic stats like total count, unresolved count, etc.
-  /// 
+  ///
   /// [tourSlotId] - The ID of the tour slot
-  /// 
+  ///
   /// Returns a map with incident statistics
   Future<Map<String, int>> getIncidentStats(String tourSlotId) async {
     try {
@@ -196,6 +197,145 @@ class IncidentService {
         'critical': 0,
         'resolved': 0,
       };
+    }
+  }
+
+  /// Report an incident for a tour slot (TourGuide only)
+  ///
+  /// [request] - The incident report request data
+  ///
+  /// Returns a [BaseResponseDto] containing the created incident data
+  Future<BaseResponseDto<ReportIncidentResponse>> reportIncident(
+    ReportIncidentRequest request,
+  ) async {
+    try {
+      final response = await _apiService.dio.post(
+        '/TourGuide/incident/report',
+        data: request.toJson(),
+      );
+
+      return BaseResponseDto<ReportIncidentResponse>.fromJson(
+        response.data,
+        (json) => ReportIncidentResponse.fromJson(json as Map<String, dynamic>),
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 403) {
+        return BaseResponseDto<ReportIncidentResponse>(
+          statusCode: 403,
+          message: 'HDV không có quyền báo cáo sự cố cho tour slot này',
+          success: false,
+          data: null,
+        );
+      } else if (e.response?.statusCode == 400) {
+        return BaseResponseDto<ReportIncidentResponse>(
+          statusCode: 400,
+          message: 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin',
+          success: false,
+          data: null,
+        );
+      } else if (e.response?.statusCode == 401) {
+        return BaseResponseDto<ReportIncidentResponse>(
+          statusCode: 401,
+          message: 'Vui lòng đăng nhập để báo cáo sự cố',
+          success: false,
+          data: null,
+        );
+      }
+
+      // Handle other errors
+      String errorMessage = 'Có lỗi xảy ra khi báo cáo sự cố';
+
+      if (e.response?.data != null && e.response!.data is Map) {
+        final errorData = e.response!.data as Map<String, dynamic>;
+        if (errorData.containsKey('Message') && errorData['Message'] != null) {
+          errorMessage = errorData['Message'].toString();
+        }
+      }
+
+      return BaseResponseDto<ReportIncidentResponse>(
+        statusCode: e.response?.statusCode ?? 500,
+        message: errorMessage,
+        success: false,
+        data: null,
+      );
+    } catch (e) {
+      return BaseResponseDto<ReportIncidentResponse>(
+        statusCode: 500,
+        message: 'Có lỗi không xác định xảy ra: ${e.toString()}',
+        success: false,
+        data: null,
+      );
+    }
+  }
+
+  /// Get incidents for TourGuide (their own incidents)
+  ///
+  /// [pageIndex] - Page index for pagination (default: 0)
+  /// [pageSize] - Number of items per page (default: 10)
+  /// [tourSlotId] - Optional filter by tour slot ID
+  /// [severity] - Optional filter by severity
+  /// [status] - Optional filter by status
+  ///
+  /// Returns a [BaseResponseDto] containing [TourGuideIncidentsResponse]
+  Future<BaseResponseDto<TourGuideIncidentsResponse>> getTourGuideIncidents({
+    int pageIndex = 0,
+    int pageSize = 10,
+    String? tourSlotId,
+    String? severity,
+    String? status,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{
+        'pageIndex': pageIndex,
+        'pageSize': pageSize,
+      };
+
+      if (tourSlotId != null) queryParams['tourSlotId'] = tourSlotId;
+      if (severity != null) queryParams['severity'] = severity;
+      if (status != null) queryParams['status'] = status;
+
+      final response = await _apiService.dio.get(
+        '/TourGuide/incidents',
+        queryParameters: queryParams,
+      );
+
+      return BaseResponseDto<TourGuideIncidentsResponse>.fromJson(
+        response.data,
+        (json) => TourGuideIncidentsResponse.fromJson(json as Map<String, dynamic>),
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        return BaseResponseDto<TourGuideIncidentsResponse>(
+          statusCode: 401,
+          message: 'Vui lòng đăng nhập để xem danh sách sự cố',
+          success: false,
+          data: null,
+        );
+      }
+
+      // Handle other errors
+      String errorMessage = 'Có lỗi xảy ra khi tải danh sách sự cố';
+
+      if (e.response?.data != null && e.response!.data is Map) {
+        final errorData = e.response!.data as Map<String, dynamic>;
+        if (errorData.containsKey('Message') && errorData['Message'] != null) {
+          errorMessage = errorData['Message'].toString();
+        }
+      }
+
+      return BaseResponseDto<TourGuideIncidentsResponse>(
+        statusCode: e.response?.statusCode ?? 500,
+        message: errorMessage,
+        success: false,
+        data: null,
+      );
+    } catch (e) {
+      return BaseResponseDto<TourGuideIncidentsResponse>(
+        statusCode: 500,
+        message: 'Có lỗi không xác định xảy ra: ${e.toString()}',
+        success: false,
+        data: null,
+      );
     }
   }
 }

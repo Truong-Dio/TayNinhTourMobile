@@ -132,26 +132,40 @@ class _AuthWrapperState extends State<AuthWrapper> {
   }
 
   Future<void> _prefetchForAuthenticatedUser(BuildContext context) async {
-    final auth = context.read<AuthProvider>();
-    final role = auth.user?.role;
-    final userId = auth.user?.id;
+    try {
+      final auth = context.read<AuthProvider>();
+      final role = auth.user?.role;
+      final userId = auth.user?.id;
 
-    if (role == AppConstants.tourGuideRole) {
-      final tgp = context.read<TourGuideProvider>();
-      if (userId != null && userId.isNotEmpty) {
-        tgp.setCurrentUserId(userId);
+      // Verify we still have a valid token before prefetching
+      final storage = const FlutterSecureStorage();
+      final token = await storage.read(key: AppConstants.accessTokenKey);
+
+      if (token == null) {
+        // Token is missing, don't prefetch
+        return;
       }
-      await Future.wait([
-        tgp.getMyActiveTours(),
-        tgp.getMyInvitations(),
-      ]);
-    } else if (role == AppConstants.userRole) {
-      final up = context.read<UserProvider>();
-      await Future.wait([
-        up.getDashboardSummary(),
-        up.getMyBookings(refresh: true),
-        up.getMyFeedbacks(refresh: true),
-      ]);
+
+      if (role == AppConstants.tourGuideRole) {
+        final tgp = context.read<TourGuideProvider>();
+        if (userId != null && userId.isNotEmpty) {
+          tgp.setCurrentUserId(userId);
+        }
+        await Future.wait([
+          tgp.getMyActiveTours(),
+          tgp.getMyInvitations(),
+        ]);
+      } else if (role == AppConstants.userRole) {
+        final up = context.read<UserProvider>();
+        await Future.wait([
+          up.getDashboardSummary(),
+          up.getMyBookings(refresh: true),
+          up.getMyFeedbacks(refresh: true),
+        ]);
+      }
+    } catch (e) {
+      // If prefetch fails, don't crash the app
+      // The individual screens will handle loading their own data
     }
   }
 

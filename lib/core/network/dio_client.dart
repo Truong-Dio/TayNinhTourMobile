@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:logger/logger.dart';
 
+import '../auth/auth_state_notifier.dart';
 import '../constants/api_constants.dart';
 import '../constants/app_constants.dart';
 import '../errors/exceptions.dart';
@@ -37,7 +38,7 @@ class DioClient {
       AuthInterceptor(_storage, _logger),
       LoggingInterceptor(_logger),
       ResponseUnwrapInterceptor(_logger),
-      ErrorInterceptor(_logger),
+      ErrorInterceptor(_logger, _storage),
     ]);
   }
   
@@ -248,19 +249,34 @@ class ResponseUnwrapInterceptor extends Interceptor {
 /// Error interceptor
 class ErrorInterceptor extends Interceptor {
   final Logger _logger;
-  
-  ErrorInterceptor(this._logger);
-  
+  final FlutterSecureStorage _storage;
+
+  ErrorInterceptor(this._logger, this._storage);
+
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
     _logger.e('API Error: ${err.message}');
-    
+
     // Handle 401 Unauthorized - token expired
     if (err.response?.statusCode == 401) {
-      // TODO: Implement token refresh logic
       _logger.w('Token expired, should refresh token');
+      // Clear stored tokens to force logout
+      _clearTokens();
+      // Notify auth state change
+      AuthStateNotifier().notifyTokenExpired();
     }
-    
+
     handler.next(err);
+  }
+
+  Future<void> _clearTokens() async {
+    try {
+      await _storage.delete(key: AppConstants.accessTokenKey);
+      await _storage.delete(key: AppConstants.refreshTokenKey);
+      await _storage.delete(key: AppConstants.userDataKey);
+      _logger.i('Tokens cleared due to 401 error');
+    } catch (e) {
+      _logger.e('Error clearing tokens: $e');
+    }
   }
 }
