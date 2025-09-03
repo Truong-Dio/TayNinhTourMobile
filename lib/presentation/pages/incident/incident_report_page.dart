@@ -71,7 +71,10 @@ class _IncidentReportPageState extends State<IncidentReportPage> {
         final fileSize = await file.length();
 
         if (fileSize > AppConstants.maxImageSize) {
-          _showMessage('Kích thước ảnh quá lớn. Vui lòng chọn ảnh nhỏ hơn 5MB.', isError: true);
+          _showMessage(
+            'Kích thước ảnh quá lớn. Vui lòng chọn ảnh nhỏ hơn 5MB.',
+            isError: true,
+          );
           return;
         }
 
@@ -110,9 +113,14 @@ class _IncidentReportPageState extends State<IncidentReportPage> {
       // Upload images first if any
       List<String>? imageUrls;
       if (_selectedImages.isNotEmpty) {
-        imageUrls = await tourGuideProvider.uploadIncidentImages(_selectedImages);
+        imageUrls = await tourGuideProvider.uploadIncidentImages(
+          _selectedImages,
+        );
         if (imageUrls == null) {
-          _showMessage('Không thể upload ảnh. Vui lòng thử lại.', isError: true);
+          _showMessage(
+            'Không thể upload ảnh. Vui lòng thử lại.',
+            isError: true,
+          );
           return;
         }
       }
@@ -120,12 +128,16 @@ class _IncidentReportPageState extends State<IncidentReportPage> {
       // ✅ CHANGED: Use tourSlotId instead of tourOperationId
       final tourSlotId = _selectedTour!.currentSlot?.id;
       if (tourSlotId == null) {
-        _showMessage('Không tìm thấy thông tin tour slot. Vui lòng thử lại.', isError: true);
+        _showMessage(
+          'Không tìm thấy thông tin tour slot. Vui lòng thử lại.',
+          isError: true,
+        );
         return;
       }
 
       final success = await tourGuideProvider.reportIncident(
-        tourSlotId: tourSlotId,  // ✅ CHANGED: tourOperationId → tourSlotId
+        tourSlotId: tourSlotId,
+        // ✅ CHANGED: tourOperationId → tourSlotId
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
         severity: _selectedSeverity,
@@ -187,119 +199,124 @@ class _IncidentReportPageState extends State<IncidentReportPage> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(16),
                 child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Warning header
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.red[50],
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red[200]!),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.warning,
-                            color: Colors.red[700],
-                            size: 24,
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Text(
-                              'Báo cáo sự cố khẩn cấp sẽ được gửi ngay đến quản lý',
-                              style: TextStyle(fontWeight: FontWeight.w500),
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Warning header
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.red[50],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.red[200]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.warning,
+                              color: Colors.red[700],
+                              size: 24,
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Tour selection
-                    _buildTourSelection(tourGuideProvider),
-
-                    const SizedBox(height: 16),
-
-                    // Title field
-                    TextFormField(
-                      controller: _titleController,
-                      decoration: const InputDecoration(
-                        labelText: 'Tiêu đề sự cố *',
-                        hintText: 'Mô tả ngắn gọn về sự cố',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Vui lòng nhập tiêu đề sự cố';
-                        }
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Severity selection
-                    _buildSeveritySelection(),
-
-                    const SizedBox(height: 16),
-
-                    // Description field
-                    TextFormField(
-                      controller: _descriptionController,
-                      maxLines: 5,
-                      decoration: const InputDecoration(
-                        labelText: 'Mô tả chi tiết *',
-                        hintText: 'Mô tả chi tiết về sự cố, nguyên nhân, tình hình hiện tại...',
-                        border: OutlineInputBorder(),
-                        alignLabelWithHint: true,
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Vui lòng mô tả chi tiết sự cố';
-                        }
-                        if (value.trim().length < 10) {
-                          return 'Mô tả phải có ít nhất 10 ký tự';
-                        }
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Image selection
-                    _buildImageSelection(),
-
-                    const SizedBox(height: 24),
-
-                    // Submit button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _isSubmitting ? null : _submitReport,
-                        icon: _isSubmitting
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
-                              )
-                            : const Icon(Icons.send),
-                        label: Text(_isSubmitting ? 'Đang gửi...' : 'Gửi báo cáo'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Text(
+                                'Báo cáo sự cố khẩn cấp sẽ được gửi ngay đến quản lý',
+                                style: TextStyle(fontWeight: FontWeight.w500),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
-                ),
+
+                      const SizedBox(height: 24),
+
+                      // Tour selection
+                      _buildTourSelection(tourGuideProvider),
+
+                      const SizedBox(height: 16),
+
+                      // Title field
+                      TextFormField(
+                        controller: _titleController,
+                        decoration: const InputDecoration(
+                          labelText: 'Tiêu đề sự cố *',
+                          hintText: 'Mô tả ngắn gọn về sự cố',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Vui lòng nhập tiêu đề sự cố';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Severity selection
+                      _buildSeveritySelection(),
+
+                      const SizedBox(height: 16),
+
+                      // Description field
+                      TextFormField(
+                        controller: _descriptionController,
+                        maxLines: 5,
+                        decoration: const InputDecoration(
+                          labelText: 'Mô tả chi tiết *',
+                          hintText:
+                              'Mô tả chi tiết về sự cố, nguyên nhân, tình hình hiện tại...',
+                          border: OutlineInputBorder(),
+                          alignLabelWithHint: true,
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Vui lòng mô tả chi tiết sự cố';
+                          }
+                          if (value.trim().length < 10) {
+                            return 'Mô tả phải có ít nhất 10 ký tự';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Image selection
+                      _buildImageSelection(),
+
+                      const SizedBox(height: 24),
+
+                      // Submit button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _isSubmitting ? null : _submitReport,
+                          icon: _isSubmitting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                )
+                              : const Icon(Icons.send),
+                          label: Text(
+                            _isSubmitting ? 'Đang gửi...' : 'Gửi báo cáo',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -315,9 +332,9 @@ class _IncidentReportPageState extends State<IncidentReportPage> {
       children: [
         Text(
           'Tour hiện tại',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         if (tourGuideProvider.activeTours.isEmpty)
@@ -330,45 +347,58 @@ class _IncidentReportPageState extends State<IncidentReportPage> {
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.info_outline,
-                  color: Colors.orange[700],
-                ),
+                Icon(Icons.info_outline, color: Colors.orange[700]),
                 const SizedBox(width: 12),
-                const Expanded(
-                  child: Text('Không có tour nào đang hoạt động'),
-                ),
+                const Expanded(child: Text('Không có tour nào đang hoạt động')),
               ],
             ),
           )
         else
           DropdownButtonFormField<ActiveTour>(
+            isExpanded: true,
             value: _selectedTour,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
+            decoration: const InputDecoration(border: OutlineInputBorder()),
+            hint: const Text(
+              "Chọn tour", // 👈 hint text khi chưa chọn
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+                fontStyle: FontStyle.italic,
+              ),
             ),
             items: tourGuideProvider.activeTours.map((tour) {
               return DropdownMenuItem<ActiveTour>(
                 value: tour,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       tour.title,
                       style: const TextStyle(fontWeight: FontWeight.w500),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
                     ),
+                    // 👇 chỉ hiện location trong menu list
                     Text(
                       '${tour.tourTemplate.startLocation} → ${tour.tourTemplate.endLocation}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               );
             }).toList(),
+            // 👇 chỉnh phần hiển thị khi đã chọn
+            selectedItemBuilder: (context) {
+              return tourGuideProvider.activeTours.map((tour) {
+                return Text(
+                  tour.title,
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                );
+              }).toList();
+            },
             onChanged: (tour) {
               setState(() {
                 _selectedTour = tour;
@@ -385,9 +415,9 @@ class _IncidentReportPageState extends State<IncidentReportPage> {
       children: [
         Text(
           'Mức độ nghiêm trọng',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         Wrap(
@@ -436,9 +466,9 @@ class _IncidentReportPageState extends State<IncidentReportPage> {
       children: [
         Text(
           'Hình ảnh minh họa',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
 
@@ -469,9 +499,9 @@ class _IncidentReportPageState extends State<IncidentReportPage> {
         if (_selectedImages.isNotEmpty) ...[
           Text(
             'Ảnh đã chọn (${_selectedImages.length})',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w500,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 8),
           SizedBox(
@@ -529,10 +559,7 @@ class _IncidentReportPageState extends State<IncidentReportPage> {
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.info_outline,
-                  color: Colors.grey[600],
-                ),
+                Icon(Icons.info_outline, color: Colors.grey[600]),
                 const SizedBox(width: 12),
                 const Expanded(
                   child: Text(

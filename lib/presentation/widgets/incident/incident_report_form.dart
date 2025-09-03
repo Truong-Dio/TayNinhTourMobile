@@ -115,6 +115,8 @@ class _IncidentReportFormState extends State<IncidentReportForm> {
                       color: Colors.grey[600],
                       fontSize: 14,
                     ),
+                      maxLines: 1,                // chỉ hiển thị 1 dòng
+                      overflow: TextOverflow.ellipsis
                   ),
                 ],
                 
