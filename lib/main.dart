@@ -50,6 +50,7 @@ void main() async {
   runApp(TayNinhTourApp(
     storage: storage,
     logger: logger,
+    dioClient: dioClient,
     authApiService: authApiService,
     tourGuideApiService: tourGuideApiService,
     userApiService: userApiService,
@@ -60,6 +61,7 @@ void main() async {
 class TayNinhTourApp extends StatelessWidget {
   final FlutterSecureStorage storage;
   final Logger logger;
+  final DioClient dioClient;
   final AuthApiService authApiService;
   final TourGuideApiService tourGuideApiService;
   final UserApiService userApiService;
@@ -69,6 +71,7 @@ class TayNinhTourApp extends StatelessWidget {
     super.key,
     required this.storage,
     required this.logger,
+    required this.dioClient,
     required this.authApiService,
     required this.tourGuideApiService,
     required this.userApiService,
@@ -90,6 +93,7 @@ class TayNinhTourApp extends StatelessWidget {
           create: (_) => TourGuideProvider(
             tourGuideApiService: tourGuideApiService,
             logger: logger,
+            dio: dioClient.dio,
           ),
         ),
         ChangeNotifierProvider(

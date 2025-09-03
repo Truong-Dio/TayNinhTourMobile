@@ -27,12 +27,15 @@ import '../../domain/entities/tour_invitation.dart';
 class TourGuideProvider extends ChangeNotifier {
   final TourGuideApiService _tourGuideApiService;
   final Logger _logger;
-  
+  final Dio _dio;
+
   TourGuideProvider({
     required TourGuideApiService tourGuideApiService,
     required Logger logger,
+    required Dio dio,
   }) : _tourGuideApiService = tourGuideApiService,
-       _logger = logger;
+       _logger = logger,
+       _dio = dio;
   
   // State
   bool _isLoading = false;
@@ -1252,7 +1255,9 @@ class TourGuideProvider extends ChangeNotifier {
       _logger.i('Completing tour slot: $tourSlotId');
 
       final request = CompleteTourSlotRequest(notes: notes);
-      final response = await _tourGuideApiService.completeTourSlot(tourSlotId, request);
+
+      // Use extended timeout for complete tour slot operation
+      final response = await _completeTourSlotWithExtendedTimeout(tourSlotId, request);
 
       if (response.success) {
         _logger.i('✅ Tour slot completed successfully: $tourSlotId');
@@ -1268,10 +1273,86 @@ class TourGuideProvider extends ChangeNotifier {
       }
     } catch (e) {
       _logger.e('Error completing tour slot: $e');
+
+      // Check if it's a timeout or network error
+      if (e.toString().contains('timeout') ||
+          e.toString().contains('SocketException') ||
+          e.toString().contains('Connection') ||
+          e.toString().contains('Network')) {
+
+        _logger.w('⏰ Network/timeout error detected, checking tour slot status...');
+
+        // Wait a moment then check status
+        await Future.delayed(const Duration(seconds: 2));
+
+        try {
+          // First try to get specific tour slot details
+          final slotDetails = await getTourSlotDetails(tourSlotId);
+          if (slotDetails?.data?.slot?.status == 'Completed') {
+            _logger.i('✅ Tour slot was actually completed successfully despite timeout!');
+            return CompleteTourSlotResponse(
+              success: true,
+              message: 'Tour slot đã hoàn thành thành công',
+              data: null,
+            );
+          }
+
+          // Fallback: Refresh all tours and check
+          await getMyTourSlots();
+          final currentSlots = _tourSlots;
+          final targetSlot = currentSlots?.firstWhere(
+            (slot) => slot.id == tourSlotId,
+            orElse: () => throw StateError('Slot not found'),
+          );
+
+          if (targetSlot != null && targetSlot.status == 'Completed') {
+            _logger.i('✅ Tour slot was actually completed successfully despite timeout (fallback check)!');
+            return CompleteTourSlotResponse(
+              success: true,
+              message: 'Tour slot đã hoàn thành thành công',
+              data: null,
+            );
+          }
+        } catch (statusCheckError) {
+          _logger.e('Error checking tour slot status: $statusCheckError');
+        }
+      }
+
       _setError('Có lỗi xảy ra khi hoàn thành tour slot');
       return null;
     } finally {
       _setLoading(false);
+    }
+  }
+
+  /// Complete tour slot with extended timeout (60 seconds)
+  Future<CompleteTourSlotResponse> _completeTourSlotWithExtendedTimeout(
+    String tourSlotId,
+    CompleteTourSlotRequest request
+  ) async {
+    // Create a custom Dio instance with extended timeout for this specific operation
+    final dio = Dio();
+    dio.options = BaseOptions(
+      baseUrl: _dio.options.baseUrl,
+      connectTimeout: const Duration(seconds: 60), // Extended timeout
+      receiveTimeout: const Duration(seconds: 60), // Extended timeout
+      sendTimeout: const Duration(seconds: 60), // Extended timeout
+      headers: _dio.options.headers,
+    );
+
+    // Copy interceptors from the main dio instance
+    dio.interceptors.addAll(_dio.interceptors);
+
+    try {
+      final response = await dio.post(
+        '/TourSlot/$tourSlotId/complete',
+        data: request.toJson(),
+      );
+
+      return CompleteTourSlotResponse.fromJson(response.data);
+    } catch (e) {
+      _logger.e('Extended timeout request failed: $e');
+      rethrow;
     }
   }
 }

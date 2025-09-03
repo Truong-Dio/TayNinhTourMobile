@@ -1082,10 +1082,16 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
   }
 
   Widget _buildBottomCompleteTourButton() {
+    // Check if tour slot is already completed
+    final isSlotCompleted = slotDetails?.data.slot.status == 'Completed';
+
     // Check if all timeline items are completed
     final allCompleted = timelineProgress != null &&
         timelineProgress!.timeline.isNotEmpty &&
         timelineProgress!.timeline.every((item) => item.isCompleted);
+
+    // Button should be enabled only if all timeline completed AND slot not already completed
+    final canComplete = allCompleted && !isSlotCompleted;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1104,22 +1110,27 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
           width: double.infinity,
           height: 56,
           child: ElevatedButton.icon(
-            onPressed: allCompleted ? _showCompleteTourDialog : null,
-            icon: const Icon(Icons.flag, size: 24),
-            label: const Text(
-              'Hoàn thành tour',
-              style: TextStyle(
+            onPressed: canComplete ? _showCompleteTourDialog : null,
+            icon: Icon(
+              isSlotCompleted ? Icons.check_circle : Icons.flag,
+              size: 24
+            ),
+            label: Text(
+              isSlotCompleted ? 'Tour đã hoàn thành' : 'Hoàn thành tour',
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: allCompleted ? AppTheme.successColor : Colors.grey,
+              backgroundColor: isSlotCompleted
+                  ? Colors.green.shade600
+                  : (canComplete ? AppTheme.successColor : Colors.grey),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              elevation: allCompleted ? 4 : 0,
+              elevation: canComplete || isSlotCompleted ? 4 : 0,
             ),
           ),
         ),
@@ -1161,16 +1172,25 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
     try {
       final tourGuideProvider = Provider.of<TourGuideProvider>(context, listen: false);
 
-      // Show loading dialog
+      // Show enhanced loading dialog
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const AlertDialog(
-          content: Row(
+        builder: (context) => AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 16),
-              Text('Đang hoàn thành tour slot...'),
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              const Text('Đang hoàn thành tour slot...'),
+              const SizedBox(height: 8),
+              Text(
+                'Quá trình này có thể mất vài giây',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
             ],
           ),
         ),
@@ -1190,9 +1210,15 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(response.message),
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(response.message)),
+                ],
+              ),
               backgroundColor: Colors.green,
-              duration: const Duration(seconds: 3),
+              duration: const Duration(seconds: 4),
             ),
           );
         }
@@ -1207,32 +1233,71 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
           Navigator.pop(context);
         }
       } else {
-        // Show error message
+        // Show error message with retry option
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(response?.message ?? 'Có lỗi xảy ra khi hoàn thành tour slot'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 3),
-            ),
-          );
+          _showErrorWithRetry(response?.message ?? 'Có lỗi xảy ra khi hoàn thành tour slot');
         }
       }
     } catch (e) {
       // Close loading dialog if still open
       if (mounted) Navigator.pop(context);
 
-      // Show error message
+      // Show enhanced error handling
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi kết nối: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        _showErrorWithRetry('Lỗi kết nối: ${e.toString()}');
       }
     }
+  }
+
+  void _showErrorWithRetry(String errorMessage) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.error, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Có lỗi xảy ra'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(errorMessage),
+            const SizedBox(height: 16),
+            const Text(
+              'Lưu ý: Tour slot có thể đã được hoàn thành thành công. Vui lòng kiểm tra lại danh sách tour.',
+              style: TextStyle(
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Refresh data to check current status
+              Provider.of<TourGuideProvider>(context, listen: false).getMyActiveTours();
+            },
+            child: const Text('Kiểm tra lại'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _completeTour(); // Retry
+            },
+            child: const Text('Thử lại'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showCompletionStatistics(CompletionStatistics statistics) {
