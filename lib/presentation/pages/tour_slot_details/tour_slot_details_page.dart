@@ -8,6 +8,7 @@ import '../../widgets/common/simple_modern_widgets.dart';
 import '../../../data/datasources/tour_guide_api_service.dart';
 import '../../../data/models/tour_slot_model.dart';
 import '../../../data/models/timeline_progress_models.dart';
+import '../../../data/models/complete_tour_slot_models.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/timeline_item.dart';
 
@@ -1156,15 +1157,127 @@ class _TourSlotDetailsPageState extends State<TourSlotDetailsPage> {
     );
   }
 
-  void _completeTour() {
-    // TODO: Implement complete tour logic
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Tour đã hoàn thành thành công!'),
-        backgroundColor: Colors.green,
+  Future<void> _completeTour() async {
+    try {
+      final tourGuideProvider = Provider.of<TourGuideProvider>(context, listen: false);
+
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Đang hoàn thành tour slot...'),
+            ],
+          ),
+        ),
+      );
+
+      // Call API to complete tour slot
+      final response = await tourGuideProvider.completeTourSlot(
+        tourSlotId: widget.slotId,
+        notes: 'Tour slot hoàn thành từ mobile app',
+      );
+
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      if (response != null && response.success) {
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.message),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+
+        // Show completion statistics if available
+        if (response.data?.statistics != null && mounted) {
+          _showCompletionStatistics(response.data!.statistics!);
+        }
+
+        // Navigate back to dashboard
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      } else {
+        // Show error message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response?.message ?? 'Có lỗi xảy ra khi hoàn thành tour slot'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      if (mounted) Navigator.pop(context);
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi kết nối: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showCompletionStatistics(CompletionStatistics statistics) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.analytics, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Thống kê hoàn thành'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildStatisticRow('Tổng khách đã booking:', '${statistics.totalBookedGuests} khách'),
+            _buildStatisticRow('Booking đã hoàn thành:', '${statistics.completedBookings} booking'),
+            _buildStatisticRow('Tổng doanh thu:', '${statistics.totalRevenue.toStringAsFixed(0)} VNĐ'),
+            _buildStatisticRow('Khách được thông báo:', '${statistics.guestsNotified} khách'),
+            _buildStatisticRow('Tỷ lệ lấp đầy:', '${statistics.occupancyRate.toStringAsFixed(1)}%'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đóng'),
+          ),
+        ],
       ),
     );
-    Navigator.pop(context);
+  }
+
+  Widget _buildStatisticRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+          Text(value, style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
   }
 
   IconData _getSlotStatusIcon(String status) {

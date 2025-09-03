@@ -17,6 +17,7 @@ import '../../data/models/tour_guide_slot_models.dart';
 import '../../data/models/individual_qr_models.dart';
 import '../../data/models/group_booking_model.dart';
 import '../../data/models/unified_checkin_models.dart';
+import '../../data/models/complete_tour_slot_models.dart';
 import '../../data/services/qr_parsing_service.dart';
 import '../../domain/entities/active_tour.dart';
 import '../../domain/entities/tour_booking.dart';
@@ -1234,6 +1235,41 @@ class TourGuideProvider extends ChangeNotifier {
       _logger.e('Error rejecting invitation: $e');
       _setError('Có lỗi xảy ra khi từ chối lời mời');
       return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// [NEW] Complete tour slot - chỉ hoàn thành slot cụ thể, không ảnh hưởng đến tour operation
+  Future<CompleteTourSlotResponse?> completeTourSlot({
+    required String tourSlotId,
+    String? notes,
+  }) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      _logger.i('Completing tour slot: $tourSlotId');
+
+      final request = CompleteTourSlotRequest(notes: notes);
+      final response = await _tourGuideApiService.completeTourSlot(tourSlotId, request);
+
+      if (response.success) {
+        _logger.i('✅ Tour slot completed successfully: $tourSlotId');
+
+        // Refresh active tours to update UI
+        await getMyActiveTours();
+
+        return response;
+      } else {
+        _setError(response.message);
+        _logger.e('❌ Failed to complete tour slot: ${response.message}');
+        return response;
+      }
+    } catch (e) {
+      _logger.e('Error completing tour slot: $e');
+      _setError('Có lỗi xảy ra khi hoàn thành tour slot');
+      return null;
     } finally {
       _setLoading(false);
     }

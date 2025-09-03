@@ -11,6 +11,7 @@ import '../models/tour_slot_model.dart';
 import '../models/tour_guide_slot_models.dart';
 import '../models/individual_qr_models.dart';
 import '../models/unified_checkin_models.dart';
+import '../models/complete_tour_slot_models.dart';
 import '../../core/constants/api_constants.dart';
 
 part 'tour_guide_api_service.g.dart';
@@ -216,7 +217,12 @@ abstract class TourGuideApiService {
     @Path('operationId') String operationId,
   );
 
-
+  /// [NEW] Complete tour slot - chỉ hoàn thành slot cụ thể, không ảnh hưởng đến tour operation
+  @POST(ApiConstants.completeTourSlot)
+  Future<CompleteTourSlotResponse> completeTourSlot(
+    @Path('tourSlotId') String tourSlotId,
+    @Body() CompleteTourSlotRequest request,
+  );
 }
 
 // TODO: Add TourSlotsResponse when needed
