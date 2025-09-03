@@ -210,17 +210,63 @@ class _CheckInPageState extends State<CheckInPage> with TickerProviderStateMixin
         return;
       }
 
-      // Handle based on QR type
-      if (qrResult.qrType == 'IndividualGuest') {
-        await _handleIndividualGuestQR(qrResult.individualGuestQR!);
-      } else if (qrResult.qrType == 'GroupBooking') {
-        await _handleGroupBookingQR(qrResult.groupBookingQR!);
-      } else {
-        // Legacy handling
-        await _handleLegacyBookingQR(qrResult.legacyBookingCode!);
-      }
+      // ✅ FIX: Use unified check-in for all QR types since QRParsingService
+      // no longer creates full objects - backend handles all parsing
+      await _handleUnifiedQRCheckIn(qrData, qrResult.qrType);
     } catch (e) {
       _showMessage('Lỗi xử lý QR code: $e', isError: true);
+    }
+  }
+
+  /// ✅ NEW: Unified QR check-in handler - works with all QR types
+  /// Uses backend parsing instead of client-side parsing
+  Future<void> _handleUnifiedQRCheckIn(String qrData, String qrType) async {
+    if (_selectedTourSlot == null) {
+      _showMessage('Vui lòng chọn tour slot trước', isError: true);
+      return;
+    }
+
+    final tourGuideProvider = context.read<TourGuideProvider>();
+
+    try {
+      // ✅ Use unified check-in endpoint with raw QR data
+      final result = await tourGuideProvider.unifiedCheckIn(
+        qrCodeData: qrData, // Send raw QR data - backend will parse
+        tourSlotId: _selectedTourSlot!.id,
+        notes: 'Check-in bằng QR code ($qrType)',
+      );
+
+      if (result != null && result.success) {
+        // Display appropriate success message based on QR type
+        String displayMessage;
+        if (result.qrType == 'Individual') {
+          final guestName = result.individualGuest?.guestName ?? 'Khách hàng';
+          displayMessage = '✅ Check-in thành công: $guestName';
+        } else if (result.qrType == 'Group') {
+          final groupName = result.groupInfo?.groupName ?? 'Nhóm';
+          final checkedInCount = result.checkedInCount ?? 0;
+          displayMessage = '✅ Check-in thành công: $groupName ($checkedInCount khách)';
+        } else {
+          // Legacy or other types
+          final displayName = result.bookingCode ?? 'Booking';
+          displayMessage = '✅ Check-in thành công: $displayName';
+        }
+
+        _showMessage(displayMessage, isError: false);
+
+        // Refresh guest list
+        await _refreshCurrentSlotData();
+
+        // Update UI
+        setState(() {
+          // Force rebuild
+        });
+      } else {
+        final errorMessage = result?.message ?? 'Check-in thất bại';
+        _showMessage('❌ $errorMessage', isError: true);
+      }
+    } catch (e) {
+      _showMessage('❌ Lỗi check-in: $e', isError: true);
     }
   }
 
